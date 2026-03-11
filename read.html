@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+function toggleDark() {
+  var isDark = document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('kanjipro_dark', isDark ? '1' : '0'); } catch(e) {}
+}
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('kanjipro_dark'); } catch(e) {}
+  var preferDark = saved !== null
+    ? saved === '1'
+    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (preferDark) document.documentElement.classList.add('dark');
+})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanji Pro — Read</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f0e8;
+  --surface: #ede8dc;
+  --ink: #1a1410;
+  --ink2: #5a5040;
+  --ink3: #8a7f6e;
+  --accent: #b8860b;
+  --accent-dim: #9a7830;
+  --red: #c0392b;
+  --border: #d4cfc4;
+  --bh: #c8c0b0;
+  --k: #c0392b; --p: #2c6fbb; --v: #27ae60; --a: #b8860b; --pr: #9050b0;
+}
+
+html.dark {
+  --bg: #1a1814;
+  --surface: #242018;
+  --ink: #e8e0d0;
+  --ink2: #b0a898;
+  --ink3: #706858;
+  --accent: #d4a84b;
+  --accent-dim: #9a7830;
+  --red: #e05a4a;
+  --border: #3a342c;
+  --bh: #4a4238;
+  --k: #e05a4a; --p: #5a9ee0; --v: #4caf72; --a: #d4a84b; --pr: #b878d8;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Crimson Pro', serif;
+  overflow: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(26,20,16,0.025) 24px, rgba(26,20,16,0.025) 25px),
+    repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(26,20,16,0.01) 24px, rgba(26,20,16,0.01) 25px);
+  opacity: 0.3;
+  pointer-events: none; z-index: 0;
+}
+.particle {
+  position: fixed;
+  font-family: 'Noto Serif JP', serif;
+  color: var(--ink); opacity: 0;
+  pointer-events: none; user-select: none;
+  will-change: transform, opacity; z-index: 0;
+}
+
+/* ═══════════════════════════════════════
+   SCREEN SYSTEM
+   ═══════════════════════════════════════ */
+.screen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  transition: opacity 0.35s, transform 0.35s;
+  opacity: 0; pointer-events: none;
+  z-index: 1;
+}
+.screen.active { opacity: 1; pointer-events: auto; z-index: 2; }
+.screen.exit-left { transform: translateX(-40px); opacity: 0; }
+.screen.enter-right { transform: translateX(40px); opacity: 0; }
+
+/* ═══════════════════════════════════════
+   LIBRARY SCREEN
+   ═══════════════════════════════════════ */
+.lib {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 4vh;
+  overflow: visible;
+}
+
+.lib-home {
+  position: fixed;
+  top: 1rem; right: 4rem;
+  background: none; border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  z-index: 10;
+}
+.lib-home:hover { border-color: var(--accent-dim); }
+.lib-home svg {
+  width: 16px; height: 16px;
+  stroke: var(--ink3); fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+
+
+
+.lib-theme {
+  position: fixed;
+  top: 1rem; right: 1.5rem;
+  background: none; border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  z-index: 10;
+}
+.lib-theme:hover { border-color: var(--accent-dim); }
+.lib-theme svg {
+  width: 16px; height: 16px;
+  stroke: var(--ink3); fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.lib-theme .icon-sun { display: none; }
+html.dark .lib-theme .icon-moon { display: none; }
+html.dark .lib-theme .icon-sun { display: block; }
+
+.lib-lang {
+  position: fixed;
+  top: 1rem; right: 6.5rem;
+  background: none; border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 10;
+  transition: border-color 0.2s;
+}
+.lib-lang:hover { border-color: var(--accent-dim); }
+#lang-label {
+  font: 600 0.6rem 'Crimson Pro', serif;
+  letter-spacing: 0.05em;
+  color: var(--ink3);
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+.lib-lang:hover #lang-label { color: var(--accent-dim); }
+.lang-drop {
+  position: fixed; top: 3.5rem; right: 6.5rem; z-index: 20;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 0.3rem; display: none; flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  min-width: 110px;
+}
+.lang-drop.show { display: flex; }
+.lang-opt {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.45rem 0.75rem; border-radius: 7px;
+  cursor: pointer; font: 400 0.75rem 'Crimson Pro', serif; color: var(--ink2);
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
+}
+.lang-opt:hover { background: rgba(212,168,75,0.07); color: var(--ink); }
+.lang-opt.active { color: var(--accent-dim); }
+.lang-opt.active::after {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  flex-shrink: 0;
+}
+
+/* Light mode */
+
+
+
+
+
+
+html.dark .shelf-card { background: #211e19; }
+html.dark .shelf-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.25); }
+
+.lib-hero {
+  text-align: center;
+  padding: 0.5rem 2rem 0.3rem;
+}
+.lib-hero-kanji {
+  font: 700 3rem 'Noto Serif JP', serif;
+  letter-spacing: 0.2em;
+  background: linear-gradient(180deg, var(--accent) 20%, var(--accent-dim));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* Shelves container */
+.lib-shelves {
+  width: 100%; max-width: 900px;
+  padding: 0.5rem 2rem;
+  display: flex; flex-direction: column;
+  gap: 1.4rem;
+  animation: fadeUp 0.4s ease both;
+}
+
+/* Section per level */
+.shelf-label {
+  font: 600 0.75rem 'Crimson Pro', serif;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  padding: 0 0 0.5rem;
+  display: flex; align-items: center; gap: 0.6rem;
+  width: 100%;
+}
+.shelf-label::before,
+.shelf-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border));
+}
+.shelf-label::after {
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+.shelf-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Horizontal scroll shelf */
+.shelf-row {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding: 4px 0 0.5rem;
+  scrollbar-width: none;
+  justify-content: center;
+}
+.shelf-row::-webkit-scrollbar { display: none; }
+
+/* Individual card on shelf */
+.shelf-card {
+  flex: 0 0 190px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.shelf-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at top left, rgba(212,160,23,0.06), transparent 65%);
+  opacity: 0; transition: opacity 0.25s;
+  pointer-events: none;
+}
+.shelf-card:hover::before { opacity: 1; }
+.shelf-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+}
+.shelf-card:hover .sc-accent { opacity: 0.7; }
+
+.sc-kj {
+  font: 700 1.8rem 'Noto Serif JP', serif;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 0.35rem;
+  position: relative; z-index: 1;
+}
+.sc-title {
+  font: 600 0.82rem 'Crimson Pro', serif;
+  color: var(--ink);
+  line-height: 1.3;
+  position: relative; z-index: 1;
+}
+.sc-sub {
+  font: italic 300 0.7rem 'Crimson Pro', serif;
+  color: var(--ink3);
+  margin-top: 0.15rem;
+  position: relative; z-index: 1;
+  line-height: 1.3;
+}
+.sc-accent {
+  width: 100%; height: 2px;
+  border-radius: 1px;
+  margin-top: 0.6rem;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+/* Read checkmark */
+.sc-check {
+  position: absolute;
+  top: 0.6rem; right: 0.6rem;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  z-index: 3;
+}
+.sc-check:hover {
+  border-color: var(--accent-dim);
+}
+.sc-check svg {
+  width: 12px; height: 12px;
+  stroke: transparent;
+  stroke-width: 2.5;
+  fill: none;
+  transition: stroke 0.2s;
+}
+.sc-check.read {
+  border-color: var(--accent);
+  background: rgba(212,168,75,0.15);
+}
+.sc-check.read svg {
+  stroke: var(--accent);
+}
+
+/* ═══════════════════════════════════════
+   READER SCREEN
+   ═══════════════════════════════════════ */
+.reader {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Card + Frame */
+.card {
+  width: 90%; max-width: 660px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.card.entering { animation: cardIn 0.4s ease both; }
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.96) translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.frame {
+  position: relative; width: 100%;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 2.4rem 3.2rem 1.6rem;
+  backdrop-filter: blur(24px);
+  display: flex; flex-direction: column; align-items: center;
+  overflow: visible;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 20px 60px rgba(0,0,0,0.1);
+}
+html.dark .frame {
+  background: rgba(36,32,24,0.55);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 20px 60px rgba(0,0,0,0.25);
+}
+.frame::before, .frame::after {
+  content: ''; position: absolute;
+  width: 28px; height: 28px;
+  border-color: var(--accent); border-style: solid; opacity: 0.15;
+}
+.frame::before { top: 14px; left: 14px; border-width: 1px 0 0 1px; border-radius: 3px 0 0 0; }
+.frame::after { top: 14px; right: 14px; border-width: 1px 1px 0 0; border-radius: 0 3px 0 0; }
+.corner-bl, .corner-br {
+  position: absolute; width: 28px; height: 28px;
+  border-color: var(--accent); border-style: solid; opacity: 0.15;
+}
+.corner-bl { bottom: 14px; left: 14px; border-width: 0 0 1px 1px; border-radius: 0 0 0 3px; }
+.corner-br { bottom: 14px; right: 14px; border-width: 0 1px 1px 0; border-radius: 0 0 3px 0; }
+
+.title-area { text-align: center; margin-bottom: 0.5rem; }
+.title { font: 700 1.7rem/1.2 'Shippori Mincho', serif; color: var(--ink); letter-spacing: 0.12em; }
+.subtitle { font: italic 0.85rem 'Crimson Pro', serif; color: var(--ink3); margin-top: 0.15rem; }
+
+.divider {
+  width: 200px; height: 12px; margin: 0.4rem 0;
+  position: relative; display: flex; align-items: center; justify-content: center;
+}
+.divider::before { content: ''; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-dim), transparent); }
+.div-dot { position: absolute; width: 4px; height: 4px; background: var(--accent); border-radius: 50%; opacity: 0.4; }
+
+.level {
+  font: 600 0.58rem 'Crimson Pro', serif;
+  letter-spacing: 0.12em; color: var(--red);
+  padding: 0.1rem 0.5rem;
+  border: 1px solid rgba(224,90,74,0.25);
+  border-radius: 4px; margin-bottom: 1.2rem;
+}
+
+/* Pages */
+.pages-wrap { width: 100%; position: relative; overflow: hidden; }
+.page { width: 100%; position: absolute; top: 0; display: none; opacity: 0; }
+.page.active { display: block; opacity: 1; position: relative; }
+.page.fade-out { animation: fadeOut 0.3s ease forwards; }
+.page.fade-in  { animation: fadeIn 0.35s ease forwards; }
+@keyframes fadeOut { 0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(6px) scale(0.99)} }
+@keyframes fadeIn  { 0%{opacity:0;transform:translateY(-6px) scale(0.99)}100%{opacity:1;transform:translateY(0) scale(1)} }
+
+.jp {
+  font: 400 1.5rem/3 'Shippori Mincho', 'Noto Serif JP', serif;
+  color: var(--ink); letter-spacing: 0.06em; word-spacing: 0.08em;
+  text-align: center; width: 100%; position: relative; padding: 0.2rem 0;
+}
+.clause { display: inline; white-space: nowrap; }
+.punc { display: inline; color: var(--ink); margin-right: 0.15em; }
+.s-end { display: block; height: 0.6rem; }
+.sentence { display: inline; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+.sentence:hover { background: rgba(212,168,75,0.04); }
+.sentence.speaking { background: rgba(212,168,75,0.08); }
+
+.page-nav {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.6rem; margin: 0.4rem 0 0; flex-shrink: 0;
+}
+.pn-arrow {
+  background: none; border: none; color: var(--ink3); cursor: pointer;
+  padding: 0.2rem; display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s; opacity: 0.5;
+}
+.pn-arrow:hover { color: var(--ink); opacity: 1; }
+.pn-arrow:disabled { opacity: 0.1; cursor: default; pointer-events: none; }
+.pn-arrow svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.pn-label { font: 0.62rem 'Crimson Pro', serif; color: var(--ink3); letter-spacing: 0.08em; opacity: 0.6; }
+
+.divider-bottom {
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+  margin: 0.5rem 0 0.6rem; flex-shrink: 0;
+}
+.grammar-row { display: flex; align-items: center; gap: 0.9rem; flex-shrink: 0; }
+.g-item { display: flex; align-items: center; gap: 0.25rem; cursor: pointer; transition: opacity 0.12s; opacity: 0.4; }
+.g-item.on { opacity: 1; }
+.g-item:hover { opacity: 0.7; }
+.g-dot { width: 6px; height: 6px; border-radius: 50%; }
+.g-label { font: 0.64rem 'Crimson Pro', serif; color: var(--ink2); }
+.g-item:not(.on) .g-label { color: var(--ink3); }
+
+/* Card action buttons */
+.card-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.ca-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 0.3rem 1rem;
+  font: 0.65rem 'Crimson Pro', serif;
+  letter-spacing: 0.06em;
+  color: var(--ink3);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 0.35rem;
+  transition: all 0.15s;
+}
+.ca-btn:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.ca-btn.on { border-color: var(--accent-dim); color: var(--accent); }
+.ca-btn.speaking { color: var(--accent); }
+.ca-btn.speaking svg { animation: pulse 1s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.ca-btn svg {
+  width: 13px; height: 13px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* Tokens */
+.tk {
+  cursor: pointer; position: relative; transition: all 0.2s;
+  display: inline; white-space: nowrap;
+  padding: 0.08em 0.2em; border-radius: 4px;
+  color: var(--ink); background: transparent;
+}
+.jp.cat-k .tk-k  { color: var(--k); background: rgba(224,90,74,0.18); }
+.jp.cat-p .tk-p  { color: var(--p); background: rgba(90,158,224,0.18); }
+.jp.cat-v .tk-v  { color: var(--v); background: rgba(76,175,114,0.18); }
+.jp.cat-a .tk-a  { color: var(--a); background: rgba(212,168,75,0.18); }
+.jp.cat-pr .tk-pr { color: var(--pr);background: rgba(184,120,216,0.18); }
+.tk.glow { z-index: 5; }
+.tk-k.glow  { color: #f09888; background: rgba(224,90,74,0.32); }
+.tk-p.glow  { color: #90c8f0; background: rgba(90,158,224,0.32); }
+.tk-v.glow  { color: #88e0a8; background: rgba(76,175,114,0.32); }
+.tk-a.glow  { color: #f0d888; background: rgba(212,168,75,0.32); }
+.tk-pr.glow { color: #d0a8f0; background: rgba(184,120,216,0.32); }
+.jp[class*="cat-"] .tk { transition: opacity 0.2s, color 0.2s, background 0.2s; }
+.jp.cat-k .tk:not(.tk-k),
+.jp.cat-p .tk:not(.tk-p),
+.jp.cat-v .tk:not(.tk-v),
+.jp.cat-a .tk:not(.tk-a),
+.jp.cat-pr .tk:not(.tk-pr) { opacity: 0.4; }
+.tip { display: none; }
+
+#float-tip {
+  position: fixed; background: rgba(255,252,245,0.96); border: 1px solid var(--bh);
+  color: var(--ink); padding: 0.55rem 0.85rem; border-radius: 9px;
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.12s;
+  z-index: 9999; box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+  display: flex; flex-direction: column; gap: 2px; backdrop-filter: blur(16px);
+}
+html.dark #float-tip {
+  background: rgba(26,24,20,0.96);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+}
+#float-tip.show { opacity: 1; }
+#float-tip::after { content: ''; position: absolute; border: 6px solid transparent; }
+#float-tip.arrow-down::after { top: 100%; left: 50%; transform: translateX(-50%); border-top-color: var(--bh); }
+#float-tip.arrow-up::after { bottom: 100%; left: 50%; transform: translateX(-50%); border-bottom-color: var(--bh); }
+.ft-r { font: 500 0.9rem 'Noto Sans JP', sans-serif; }
+.ft-m { font: 0.78rem 'Crimson Pro', serif; color: var(--ink2); }
+.ft-l { font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); margin-top: 1px; }
+
+.tl-over {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+  padding: 4rem 3rem 2.5rem;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  z-index: 30; pointer-events: none; text-align: center;
+}
+.tl-over.show { transform: translateY(0); pointer-events: auto; }
+.tl-text { font: italic 1.05rem/1.8 'Crimson Pro', serif; color: var(--ink2); max-width: 520px; margin: 0 auto; }
+.tl-page { display: none; }
+.tl-page.active { display: block; }
+
+.watermark {
+  position: fixed; right: 5%; bottom: 8%;
+  font: 700 10rem 'Noto Serif JP', serif;
+  color: rgba(0,0,0,0.03);
+  pointer-events: none; z-index: 0; line-height: 1;
+  transition: color 0.4s;
+}
+html.dark .watermark { color: rgba(180,140,60,0.025); }
+
+@media (max-width: 768px) {
+  .frame { padding: 1.8rem 1.5rem 1.4rem; }
+  .jp { font-size: 1.2rem; line-height: 2.6; }
+  .title { font-size: 1.4rem; }
+  .shelf-card { flex: 0 0 140px; }
+  .sc-kj { font-size: 1.2rem; }
+  .lib-hero-kanji { font-size: 2.4rem; }
+}
+</style>
+</head>
+<body>
+
+
+<div class="watermark" id="watermark">読</div>
+
+<!-- ═══ LIBRARY SCREEN ═══ -->
+<div class="screen lib active" id="screen-lib">
+  <button class="lib-theme" onclick="toggleDark()">
+    <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+  </button>
+  <button class="lib-home" onclick="window.location.href='index.html'">
+    <svg viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+  </button>
+  <button class="lib-lang" id="lang-btn" onclick="document.getElementById('lang-drop').classList.toggle('show')">
+    <span id="lang-label">EN</span>
+  </button>
+  <div class="lang-drop" id="lang-drop">
+    <div class="lang-opt" data-lang="en" onclick="pickLang('en')">English</div>
+    <div class="lang-opt" data-lang="pt" onclick="pickLang('pt')">Português</div>
+    <div class="lang-opt" data-lang="es" onclick="pickLang('es')">Español</div>
+  </div>
+  <div class="lib-hero">
+    <div class="lib-hero-kanji">読解</div>
+  </div>
+  <div class="lib-shelves" id="lib-shelves"></div>
+</div>
+
+<!-- ═══ READER SCREEN ═══ -->
+<div class="screen reader" id="screen-reader" onclick="if(event.target===this)goLibrary()">
+  <div class="card entering" id="card">
+    <div class="frame">
+      <span class="corner-bl"></span><span class="corner-br"></span>
+      <div class="title-area">
+        <div class="title" id="s-title"></div>
+        <div class="subtitle" id="s-subtitle"></div>
+      </div>
+      <div class="divider"><span class="div-dot"></span></div>
+      <span class="level" id="s-level"></span>
+      <div class="pages-wrap" id="pages-wrap"></div>
+      <div class="page-nav" id="page-nav">
+        <button class="pn-arrow" id="prev-btn" onclick="goPage(-1)" disabled>
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span class="pn-label" id="pn-label"></span>
+        <button class="pn-arrow" id="next-btn" onclick="goPage(1)">
+          <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <div class="divider-bottom"></div>
+      <div class="grammar-row">
+        <div class="g-item on" data-cat="k"><span class="g-dot" style="background:var(--k)"></span><span class="g-label" id="lbl-kanji">Kanji</span></div>
+        <div class="g-item on" data-cat="p"><span class="g-dot" style="background:var(--p)"></span><span class="g-label" id="lbl-particles">Particles</span></div>
+        <div class="g-item on" data-cat="v"><span class="g-dot" style="background:var(--v)"></span><span class="g-label" id="lbl-verbs">Verbs</span></div>
+        <div class="g-item on" data-cat="a"><span class="g-dot" style="background:var(--a)"></span><span class="g-label" id="lbl-adjectives">Adjectives</span></div>
+        <div class="g-item on" data-cat="pr"><span class="g-dot" style="background:var(--pr)"></span><span class="g-label" id="lbl-pronouns">Pronouns</span></div>
+      </div>
+      </div>
+      <div class="card-actions">
+        <button class="ca-btn" id="audio-btn" onclick="speakPage()">
+          <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+          <span id="lbl-listen">Listen</span>
+        </button>
+        <button class="ca-btn" id="tl-btn" onclick="togTL()">
+          <svg viewBox="0 0 24 24"><path d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+          <span id="lbl-translate">English</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tl-over" id="tl"><div id="tl-content"></div></div>
+<div id="float-tip"><span class="ft-r"></span><span class="ft-m"></span><span class="ft-l"></span></div>
+
+<script src="i18n.js"></script>
+<script src="stories.js"></script>
+<script>
+
+
+// ═══ LANGUAGE ═══
+const LANG_LABELS={en:'EN',pt:'PT',es:'ES'};
+function updateLangOpts(){
+  document.querySelectorAll('.lang-opt[data-lang]').forEach(el=>{
+    el.classList.toggle('active', el.dataset.lang===currentLang);
+  });
+}
+function pickLang(lang){
+  setLang(lang);
+  document.getElementById('lang-drop').classList.remove('show');
+  document.getElementById('lang-label').textContent=LANG_LABELS[lang]||'EN';updateLangOpts();
+  applyReadLang();
+}
+function applyReadLang(){
+  const $=id=>document.getElementById(id);
+  // Grammar legend
+  if($('lbl-kanji'))$('lbl-kanji').textContent=t('read_kanji');
+  if($('lbl-particles'))$('lbl-particles').textContent=t('read_particles');
+  if($('lbl-verbs'))$('lbl-verbs').textContent=t('read_verbs');
+  if($('lbl-adjectives'))$('lbl-adjectives').textContent=t('read_adjectives');
+  if($('lbl-pronouns'))$('lbl-pronouns').textContent=t('read_pronouns');
+  // Buttons
+  if($('lbl-listen'))$('lbl-listen').textContent=t('read_listen');
+  const names={en:'English',pt:'Português',es:'Español'};
+  if($('lbl-translate'))$('lbl-translate').textContent=names[currentLang]||'English';
+  // Story subtitle in reader
+  if($('s-subtitle')){
+    const sid=$('s-subtitle').dataset.storyId;
+    if(sid) $('s-subtitle').textContent=t('sub_'+sid);
+  }
+  // Library shelf - re-render to pick up translated subs
+  if(typeof renderLibrary==='function') renderLibrary();
+}
+(function(){
+  document.getElementById('lang-label').textContent=LANG_LABELS[currentLang]||'EN';updateLangOpts();
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.lib-lang')&&!e.target.closest('.lang-drop'))
+      document.getElementById('lang-drop').classList.remove('show');
+  });
+})();
+
+// ═══ STORY RENDERER ═══
+// Stories are now loaded from stories.js as structured token data.
+// This renderer converts them to HTML at runtime.
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const TYPE_LABEL = { k: 'kanji', p: 'particle', v: 'verb', a: 'adj', pr: 'pronoun' };
+
+function renderToken(tok) {
+  if (tok.type === 'punc') return `<span class="punc">${tok.text}</span>`;
+  if (tok.type === 'plain') return tok.text;
+  const label = TYPE_LABEL[tok.type] || tok.type;
+  return `<span class="tk tk-${tok.type}" data-r="${escHtml(tok.reading)}" data-m="${escHtml(tok.meaning)}" data-l="${label}">${tok.text}</span>`;
+}
+
+function renderPage(page) {
+  return page.sentences.map(sent =>
+    `<span class="sentence" data-text="${escHtml(sent.text)}">${sent.tokens.map(renderToken).join('')}</span><span class="s-end"></span>`
+  ).join(' ');
+}
+
+
+let cur=-1, pg=1, totPg=1;
+let readSet;
+try { readSet = new Set(JSON.parse(localStorage.getItem('kanjipro_read')||'[]')); } catch(e){ readSet = new Set(); }
+function toggleRead(id, el) {
+  if (readSet.has(id)) { readSet.delete(id); el.classList.remove('read'); }
+  else { readSet.add(id); el.classList.add('read'); }
+  try { localStorage.setItem('kanjipro_read', JSON.stringify([...readSet])); } catch(e){}
+}
+
+// ═══ SCREENS ═══
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    if (s.id === id) { s.classList.add('active'); s.classList.remove('exit-left','enter-right'); }
+    else { s.classList.remove('active'); }
+  });
+}
+function goReader(idx) {
+  const lib = document.getElementById('screen-lib');
+  const rdr = document.getElementById('screen-reader');
+  lib.classList.add('exit-left');
+  rdr.classList.add('enter-right');
+  setTimeout(() => {
+    lib.classList.remove('active','exit-left');
+    rdr.classList.add('active'); rdr.classList.remove('enter-right');
+    loadStory(idx);
+  }, 300);
+}
+function goLibrary() {
+  if(speaking){speechSynthesis.cancel();speaking=false;}
+  document.getElementById('tl').classList.remove('show');
+  document.getElementById('tl-btn').classList.remove('on');
+  const rdr = document.getElementById('screen-reader');
+  const lib = document.getElementById('screen-lib');
+  rdr.classList.remove('active');
+  lib.classList.add('active');
+  document.getElementById('watermark').textContent = '読';
+  cur = -1;
+}
+
+// ═══ LIBRARY ═══
+function renderLibrary() {
+  const lvlColors = { 'N5': '#d48ea0', 'N4': '#c47a3a', 'N3': '#5a8aaa', 'N2': '#aa5a5a', 'N1': '#d4a84b' };
+  const lvls = [...new Set(STORIES.map(s=>s.lvl))].sort();
+  document.getElementById('lib-shelves').innerHTML = lvls.map(lvl => {
+    const stories = STORIES.filter(s => s.lvl === lvl);
+    return `
+    <div class="shelf-section">
+      <div class="shelf-label"><span class="shelf-dot" style="background:${lvlColors[lvl]||'var(--ink3)'}"></span> ${lvl}</div>
+      <div class="shelf-row">${stories.map(s => {
+        const i = STORIES.indexOf(s);
+        return `<div class="shelf-card" onclick="goReader(${i})">
+          <div class="sc-check ${readSet.has(s.id)?'read':''}" onclick="event.stopPropagation();toggleRead('${s.id}',this)">
+            <svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg>
+          </div>
+          <div class="sc-kj">${s.kanji}</div>
+          <div class="sc-title">${s.title}</div>
+          <div class="sc-sub">${typeof t==='function'?(t('sub_'+s.id)||s.sub):s.sub}</div>
+          <div class="sc-accent" style="background:${s.color}"></div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ TOOLTIP ═══
+const ft=document.getElementById('float-tip'),ftR=ft.querySelector('.ft-r'),ftM=ft.querySelector('.ft-m'),ftL=ft.querySelector('.ft-l');
+function showTip(tk){const reading=tk.dataset.r,meaning=tk.dataset.m,label=tk.dataset.l;if(!reading)return;ftR.textContent=reading;const trMap=currentLang!=='en'?TIP_TR[currentLang]:null;ftM.textContent=trMap&&trMap[meaning]||meaning||'';ftL.textContent=trMap&&trMap[label]||label||'';ft.classList.remove('arrow-down','arrow-up');ft.style.left='0';ft.style.top='0';ft.classList.add('show');requestAnimationFrame(()=>{const r=tk.getBoundingClientRect(),w=ft.offsetWidth,h=ft.offsetHeight,g=12;let x=r.left+r.width/2-w/2,y=r.top-h-g,a='arrow-down';if(y<4){y=r.bottom+g;a='arrow-up';}if(x<8)x=8;if(x+w>innerWidth-8)x=innerWidth-w-8;ft.style.left=x+'px';ft.style.top=y+'px';ft.classList.add(a);});}
+function hideTip(){ft.classList.remove('show','arrow-down','arrow-up');}
+
+// ═══ AUDIO ═══
+let speaking=false;
+function speakText(t){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';u.rate=0.8;const v=speechSynthesis.getVoices().find(v=>v.lang.startsWith('ja'));if(v)u.voice=v;u.onstart=()=>{speaking=true;document.getElementById('audio-btn').classList.add('speaking');};u.onend=()=>{speaking=false;document.getElementById('audio-btn').classList.remove('speaking');document.querySelectorAll('.sentence.speaking').forEach(s=>s.classList.remove('speaking'));};speechSynthesis.speak(u);}
+function speakPage(){if(speaking){speechSynthesis.cancel();speaking=false;document.getElementById('audio-btn').classList.remove('speaking');return;}const ap=document.querySelector('.page.active');if(!ap)return;const t=Array.from(ap.querySelectorAll('.sentence[data-text]')).map(s=>s.dataset.text);if(t.length)speakText(t.join(' '));}
+function speakSentence(el){const t=el.dataset.text;if(!t)return;if(speaking)speechSynthesis.cancel();document.querySelectorAll('.sentence.speaking').forEach(s=>s.classList.remove('speaking'));el.classList.add('speaking');speakText(t);}
+if('speechSynthesis' in window)speechSynthesis.getVoices();
+
+// ═══ LOAD STORY ═══
+function loadStory(idx){
+  cur=idx;pg=1;const s=STORIES[idx];totPg=s.pages.length;
+  document.getElementById('s-title').textContent=s.title;
+  document.getElementById('s-subtitle').textContent=t('sub_'+s.id)||s.sub;
+  document.getElementById('s-subtitle').dataset.storyId=s.id;
+  document.getElementById('s-level').textContent='JLPT '+s.lvl;
+  document.getElementById('watermark').textContent=s.wm;
+  document.getElementById('pages-wrap').innerHTML=s.pages.map((p,i)=>`<div class="page ${i===0?'active':''}" data-page="${i+1}"><div class="jp">${renderPage(p)}</div></div>`).join('');
+  document.getElementById('tl-content').innerHTML=s.pages.map((p,i)=>`<div class="tl-page ${i===0?'active':''}" data-tlpage="${i+1}"><div class="tl-text">${p[currentLang]||p.pt||p.en}</div></div>`).join('');
+  document.getElementById('page-nav').style.display=totPg>1?'flex':'none';
+  updateNav();setupTk();
+  const c=document.getElementById('card');c.classList.remove('entering');void c.offsetWidth;c.classList.add('entering');
+}
+
+// ═══ PAGES ═══
+function goPage(d){goToPage(pg+d);}
+function goToPage(n){if(n<1||n>totPg||n===pg)return;if(speaking){speechSynthesis.cancel();speaking=false;}const o=document.querySelector(`.page[data-page="${pg}"]`),nw=document.querySelector(`.page[data-page="${n}"]`);o.classList.add('fade-out');setTimeout(()=>{o.classList.remove('active','fade-out');nw.classList.add('active','fade-in');setTimeout(()=>nw.classList.remove('fade-in'),350);pg=n;updateNav();updateTL();},280);}
+function updateNav(){document.getElementById('prev-btn').disabled=pg===1;document.getElementById('next-btn').disabled=pg===totPg;document.getElementById('pn-label').textContent=pg+' / '+totPg;}
+function updateTL(){document.querySelectorAll('.tl-page').forEach(p=>p.classList.toggle('active',p.dataset.tlpage==pg));}
+function togTL(){document.getElementById('tl').classList.toggle('show');document.getElementById('tl-btn').classList.toggle('on');}
+
+// ═══ TOKENS — event delegation, attached once at init ═══
+(function(){
+  const wrap = document.getElementById('pages-wrap');
+  wrap.addEventListener('mouseover', e => {
+    const tk = e.target.closest('.tk'); if(!tk) return;
+    tk.classList.add('glow'); showTip(tk);
+    const jp = tk.closest('.jp');
+    if(jp) ['k','p','v','a','pr'].forEach(t => { if(tk.classList.contains('tk-'+t)) jp.classList.add('cat-'+t); });
+  });
+  wrap.addEventListener('mouseout', e => {
+    const tk = e.target.closest('.tk'); if(!tk) return;
+    tk.classList.remove('glow'); hideTip();
+    const jp = tk.closest('.jp');
+    if(jp) jp.classList.remove('cat-k','cat-p','cat-v','cat-a','cat-pr');
+  });
+  wrap.addEventListener('click', e => {
+    if(e.target.closest('.tk')) return;
+    const s = e.target.closest('.sentence[data-text]');
+    if(s) speakSentence(s);
+  });
+})();
+
+function setupTk(){
+  // .g-item hover (legend bar — small fixed set)
+  document.querySelectorAll('.g-item').forEach(item=>{
+    const cat=item.dataset.cat;
+    item.onmouseenter=()=>document.querySelectorAll('.jp').forEach(jp=>jp.classList.add('cat-'+cat));
+    item.onmouseleave=()=>document.querySelectorAll('.jp').forEach(jp=>jp.classList.remove('cat-'+cat));
+  });
+}
+
+// Tooltip translations
+const TIP_TR={
+pt:{
+// tip-l (grammar labels)
+'verb':'verbo','kanji':'kanji','particle':'partícula','adj':'adj','pronoun':'pronome',
+// tip-m (meanings) - common ones
+'is':'é','topic':'tópico','possessive':'possessivo','subject':'sujeito','object':'objeto',
+'in':'em','to':'para','at':'em','on':'em','with':'com','and':'e','also':'também','as':'como',
+'into':'em','through':'através',
+'Japan':'Japão','person':'pessoa','people':'pessoas','everyone':'todos','they':'eles','we':'nós',
+'this':'isto','I':'eu',
+'river':'rio','water':'água','power':'poder','head':'cabeça','body':'corpo','mountain':'montanha',
+'top':'topo','plate':'prato','creature':'criatura','famous':'famoso','green':'verde',
+'kappa':'kappa','tanuki':'tanuki','ninja':'ninja','samurai':'samurai','sushi':'sushi',
+'lives':'vive','exists':'existe','runs out':'acaba','disappears':'desaparece','brings':'traz',
+'if you meet':'se encontrar','please do':'por favor faça','bow':'reverência',
+'folktale':'conto popular','shapeshift':'transformar','transforms':'transforma','surprises':'surpreende',
+'has':'tem','happiness':'felicidade','monk':'monge','temple':'templo','night':'noite','animal':'animal',
+'spring':'primavera','cherry blossom':'cerejeira','park':'parque','flower viewing':'hanami',
+'blooms':'floresce','goes':'vai','does':'faz','beautiful':'bonito',
+'hot spring':'fonte termal','hot water':'água quente','weekend':'fim de semana','warm':'morno',
+'feeling':'sentimento','was good':'foi bom','scenery':'paisagem','was':'era','went':'foi',
+'cuisine':'culinária','fish':'peixe','rice':'arroz','preserve':'conservar','used':'usou',
+'now':'agora','is loved':'é amado','worldwide':'mundial','long ago':'antigamente','most':'mais',
+'summer':'verão','festival':'festival','yukata':'yukata','friends':'amigos','go out':'sair',
+'fireworks':'fogos de artifício','wearing':'vestindo','when becomes':'quando chega',
+'history':'história','important':'importante','existence':'existência','darkness':'escuridão',
+'inside':'dentro','quietly':'silenciosamente','moved':'moveu','special':'especial',
+'weapons':'armas','techniques':'técnicas',
+'today':'hoje','cat':'gato','cute':'fofo','there are':'há','one animal':'um animal',
+'white':'branco','came':'veio','lap':'colo',
+'Mt. Fuji':'Monte Fuji','tall':'alto','number one':'número um','every year':'todo ano',
+'climb':'escalar','summit':'cume','sunrise':'nascer do sol','magnificent':'magnífico',
+'bullet train':'trem-bala','fast':'rápido','train':'trem','Tokyo':'Tóquio','Osaka':'Osaka',
+'2.5 hours':'2,5 horas','arrives':'chega',
+'July 7th':'7 de julho','Tanabata':'Tanabata','paper strip':'tira de papel','wish':'desejo',
+'write':'escrever','stars':'estrelas',
+'ramen':'ramen','various':'vários','miso':'miso','soy sauce':'molho de soja','salt':'sal',
+'pork bone':'osso de porco','popular':'popular',
+'bushido':'bushido','morality':'moralidade','followed':'seguiu','honor':'honra','loyalty':'lealdade',
+'importantly':'com importância','did':'fez',
+'tea ceremony':'cerimônia do chá','tea':'chá','mere':'mero','way of drinking':'forma de beber',
+'is not':'não é','spirit':'espírito','harmony, respect, purity, tranquility':'harmonia, respeito, pureza, tranquilidade',
+'lunchbox':'marmita','ekiben':'ekiben','eat':'comer','is called':'é chamado','delicious':'delicioso',
+'yesterday':'ontem','strange':'estranho','dream':'sonho','sky':'céu','flying':'voando',
+'clouds':'nuvens','above':'acima','walked':'andou','eyes':'olhos','woke up':'acordou',
+'a little':'um pouco','was sad':'estava triste','all Japan':'todo Japão',
+'appearances':'aparições','appears':'aparece',
+},
+es:{
+'verb':'verbo','kanji':'kanji','particle':'partícula','adj':'adj','pronoun':'pronombre',
+'is':'es','topic':'tema','possessive':'posesivo','subject':'sujeto','object':'objeto',
+'in':'en','to':'a','at':'en','on':'en','with':'con','and':'y','also':'también','as':'como',
+'into':'en','through':'a través',
+'Japan':'Japón','person':'persona','people':'personas','everyone':'todos','they':'ellos','we':'nosotros',
+'this':'esto','I':'yo',
+'river':'río','water':'agua','power':'poder','head':'cabeza','body':'cuerpo','mountain':'montaña',
+'top':'cima','plate':'plato','creature':'criatura','famous':'famoso','green':'verde',
+'kappa':'kappa','tanuki':'tanuki','ninja':'ninja','samurai':'samurái','sushi':'sushi',
+'lives':'vive','exists':'existe','runs out':'se agota','disappears':'desaparece','brings':'trae',
+'if you meet':'si te encuentras','please do':'por favor haz','bow':'reverencia',
+'folktale':'cuento popular','shapeshift':'transformar','transforms':'transforma','surprises':'sorprende',
+'has':'tiene','happiness':'felicidad','monk':'monje','temple':'templo','night':'noche','animal':'animal',
+'spring':'primavera','cherry blossom':'cerezo','park':'parque','flower viewing':'hanami',
+'blooms':'florece','goes':'va','does':'hace','beautiful':'hermoso',
+'hot spring':'aguas termales','hot water':'agua caliente','weekend':'fin de semana','warm':'cálido',
+'feeling':'sentimiento','was good':'fue bueno','scenery':'paisaje','was':'era','went':'fue',
+'cuisine':'cocina','fish':'pescado','rice':'arroz','preserve':'conservar','used':'usó',
+'now':'ahora','is loved':'es amado','worldwide':'mundial','long ago':'hace mucho','most':'más',
+'summer':'verano','festival':'festival','yukata':'yukata','friends':'amigos','go out':'salir',
+'fireworks':'fuegos artificiales','wearing':'vistiendo','when becomes':'cuando llega',
+'history':'historia','important':'importante','existence':'existencia','darkness':'oscuridad',
+'inside':'dentro','quietly':'silenciosamente','moved':'se movió','special':'especial',
+'weapons':'armas','techniques':'técnicas',
+'today':'hoy','cat':'gato','cute':'lindo','there are':'hay','one animal':'un animal',
+'white':'blanco','came':'vino','lap':'regazo',
+'Mt. Fuji':'Monte Fuji','tall':'alto','number one':'número uno','every year':'cada año',
+'climb':'escalar','summit':'cumbre','sunrise':'amanecer','magnificent':'magnífico',
+'bullet train':'tren bala','fast':'rápido','train':'tren','Tokyo':'Tokio','Osaka':'Osaka',
+'2.5 hours':'2,5 horas','arrives':'llega',
+'July 7th':'7 de julio','Tanabata':'Tanabata','paper strip':'tira de papel','wish':'deseo',
+'write':'escribir','stars':'estrellas',
+'ramen':'ramen','various':'varios','miso':'miso','soy sauce':'salsa de soja','salt':'sal',
+'pork bone':'hueso de cerdo','popular':'popular',
+'bushido':'bushido','morality':'moralidad','followed':'siguió','honor':'honor','loyalty':'lealtad',
+'importantly':'con importancia','did':'hizo',
+'tea ceremony':'ceremonia del té','tea':'té','mere':'mero','way of drinking':'forma de beber',
+'is not':'no es','spirit':'espíritu','harmony, respect, purity, tranquility':'armonía, respeto, pureza, tranquilidad',
+'lunchbox':'lonchera','ekiben':'ekiben','eat':'comer','is called':'se llama','delicious':'delicioso',
+'yesterday':'ayer','strange':'extraño','dream':'sueño','sky':'cielo','flying':'volando',
+'clouds':'nubes','above':'arriba','walked':'caminó','eyes':'ojos','woke up':'despertó',
+'a little':'un poco','was sad':'estaba triste','all Japan':'todo Japón',
+'appearances':'apariciones','appears':'aparece',
+}};
+
+
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')goPage(1);if(e.key==='ArrowLeft')goPage(-1);});
+
+// ═══ INIT ═══
+renderLibrary();
+if(typeof applyReadLang==='function') applyReadLang();
+
+// ═══ PARTICLES ═══
+(function(){const ch='漢字読書学語文心夢花風月光星雨空海山火水木金土日時力愛美音道'.split('');const M=16;let n=0;function sp(){if(n>=M)return;const el=document.createElement('span');el.className='particle';el.textContent=ch[Math.floor(Math.random()*ch.length)];const s=14+Math.random()*28,l=Math.random()*100,d=18+Math.random()*25,dl=Math.random()*2,o=0.03+Math.random()*0.05,r=-30+Math.random()*60,dx=-40+Math.random()*80;el.style.cssText=`font-size:${s}px;left:${l}%`;el.animate([{opacity:0,transform:`translateY(100vh) translateX(0) rotate(0)`},{opacity:o,transform:`translateY(70vh) translateX(${dx*0.3}px) rotate(${r*0.3}deg)`,offset:0.1},{opacity:o,transform:`translateY(20vh) translateX(${dx}px) rotate(${r*0.7}deg)`,offset:0.85},{opacity:0,transform:`translateY(-10vh) translateX(${dx*0.3}px) rotate(${r}deg)`}],{duration:d*1e3,delay:dl*1e3,easing:'linear',fill:'forwards'});document.body.appendChild(el);n++;setTimeout(()=>{el.remove();n--;},(d+dl)*1e3);}for(let i=0;i<8;i++)setTimeout(sp,i*800);setInterval(sp,2800);})();
+
+</script>
+</body>
+</html>

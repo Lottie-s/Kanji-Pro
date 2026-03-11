@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+function toggleDark() {
+  var isDark = document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('kanjipro_dark', isDark ? '1' : '0'); } catch(e) {}
+}
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('kanjipro_dark'); } catch(e) {}
+  var preferDark = saved !== null
+    ? saved === '1'
+    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (preferDark) document.documentElement.classList.add('dark');
+})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Kanji Pro — Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f0e8;--bg2:#ede8dc;--ink:#1a1410;--ink2:#5a5040;--ink3:#8a7f6e;--accent:#b8860b;--red:#c0392b;--green:#27ae60;--border:#d4cfc4;--card:#fff}
+html.dark{--bg:#1a1814;--bg2:#211e19;--ink:#e8e0d0;--ink2:#b0a898;--ink3:#706858;--accent:#d4a84b;--red:#e05a4a;--green:#4caf72;--border:#3a342c;--card:#2a2520}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:'Crimson Pro',serif;display:flex}
+
+/* ═══ LEFT PANEL ═══ */
+.panel{
+  width:380px;flex-shrink:0;background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:row;overflow:hidden;
+}
+.panel-tabs{
+  display:flex;flex-direction:column;align-items:center;
+  width:28px;flex-shrink:0;
+  border-right:1px solid var(--border);
+  padding:1rem 0;gap:0;
+  background:var(--bg2);
+}
+.ptab{
+  writing-mode:vertical-rl;
+  text-orientation:mixed;
+  transform:rotate(180deg);
+  font:700 0.5rem 'Crimson Pro',serif;
+  letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--ink3);
+  padding:0.8rem 0.3rem;
+  cursor:pointer;
+  border-radius:0 6px 6px 0;
+  transition:color 0.15s,background 0.15s;
+  user-select:none;
+  white-space:nowrap;
+  width:100%;text-align:center;
+  border-left:2px solid transparent;
+}
+.ptab:hover{color:var(--ink2)}
+.ptab.active{
+  color:var(--accent);
+  border-left:2px solid var(--accent);
+  background:rgba(212,168,75,0.06);
+}
+.panel-inner{
+  display:flex;flex-direction:column;flex:1;overflow:hidden;
+}
+.p-head{
+  padding:0.9rem 0.9rem 0.5rem;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  border-bottom:1px solid var(--border);
+}
+.p-title{
+  font:700 0.65rem 'Crimson Pro',serif;
+  letter-spacing:0.14em;text-transform:uppercase;color:var(--ink2);
+}
+.p-btns{display:flex;gap:0.3rem}
+.p-btn{
+  background:var(--bg);border:1.5px solid var(--border);
+  border-radius:6px;padding:0.2rem 0.7rem;
+  font:700 0.55rem 'Crimson Pro',serif;
+  letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--ink3);cursor:pointer;
+  transition:border-color 0.15s,color 0.15s,background 0.15s;
+}
+.p-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(212,168,75,0.06)}
+.p-scroll{
+  flex:1;overflow-y:auto;
+  padding:0.6rem 0.7rem 1rem;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+
+/* Level header */
+.lh{
+  display:flex;align-items:center;gap:0.5rem;
+  padding:0.7rem 0.1rem 0.35rem;
+  cursor:pointer;user-select:none;
+}
+.lh-badge{
+  font:800 0.6rem 'Crimson Pro',serif;letter-spacing:0.08em;
+  background:var(--accent);color:#fff;
+  border-radius:5px;padding:0.15rem 0.4rem;
+  flex-shrink:0;text-transform:uppercase;
+  box-shadow:0 2px 4px rgba(0,0,0,0.15);
+}
+html.dark .lh-badge{color:#1a1410}
+.lh-chk{
+  width:16px;height:16px;border-radius:4px;
+  border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all 0.15s;margin-left:auto;
+}
+.lh-chk.on{border-color:var(--accent);background:var(--accent)}
+.lh-chk svg{width:9px;height:9px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.lh-chk.on svg{opacity:1}
+.lh-line{flex:1;height:1px;background:var(--border)}
+
+/* Tile grid */
+.tile-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;padding:0.2rem 0 0.5rem}
+
+.tile{
+  background:var(--card);
+  border:2.5px solid var(--border);
+  border-radius:16px;
+  padding:0.6rem 0.5rem 0.55rem;
+  cursor:pointer;user-select:none;
+  transition:border-color 0.12s,background 0.12s,transform 0.1s,box-shadow 0.12s;
+  position:relative;overflow:hidden;
+}
+.tile:hover{
+  border-color:var(--ink3);
+  transform:translateY(-2px);
+  box-shadow:0 5px 14px rgba(0,0,0,0.1);
+}
+.tile:active{transform:translateY(0);box-shadow:none}
+.tile.on{
+  border-color:var(--accent);
+  background:rgba(212,168,75,0.07);
+  box-shadow:0 3px 10px rgba(212,168,75,0.18);
+}
+.tile.on::before{
+  content:'✓';
+  position:absolute;top:6px;right:8px;
+  font:900 0.65rem 'Crimson Pro',serif;
+  color:var(--accent);
+}
+
+.tile-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem}
+.tile-name{
+  font:700 0.65rem 'Crimson Pro',serif;
+  color:var(--ink2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75%;
+}
+.tile.on .tile-name{color:var(--ink)}
+.tile-n{
+  font:700 0.5rem 'Crimson Pro',serif;
+  color:var(--accent);background:rgba(212,168,75,0.14);
+  border-radius:5px;padding:0.08rem 0.35rem;
+}
+html.dark .tile-n{background:rgba(212,168,75,0.12)}
+
+.tile-kanji{display:flex;flex-wrap:wrap;gap:0.15rem}
+.tile-k{
+  font:600 0.85rem 'Noto Serif JP',serif;color:var(--ink3);
+  width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);border-radius:6px;
+  transition:color 0.1s,background 0.1s;
+}
+.tile.on .tile-k{color:var(--accent);background:rgba(212,168,75,0.12)}
+
+/* ═══ RIGHT MAIN ═══ */
+.main{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+
+/* Stats row */
+.stats{
+  display:flex;justify-content:center;align-items:center;
+  padding:1.2rem 1.5rem 0.8rem;flex-shrink:0;
+  gap:0;
+}
+.stats-card{
+  display:flex;align-items:stretch;justify-content:center;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:99px;
+  z-index:1;
+}
+.st{
+  text-align:center;
+  padding:0.55rem 1.3rem;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0.08rem;min-width:76px;
+}
+.st:last-child{border-right:none}
+.st-icon{width:11px;height:11px;opacity:0.6;flex-shrink:0}
+.st-n{font:700 1.4rem 'Crimson Pro',serif;line-height:1}
+.st-n.g{color:var(--green)}.st-n.r{color:var(--red)}
+.st-l{font:500 0.38rem 'Crimson Pro',serif;letter-spacing:0.13em;text-transform:uppercase;color:var(--ink3)}
+
+/* Fire streak — center circle badge */
+.fire-wrap{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:64px;height:64px;flex-shrink:0;
+  background:var(--card);
+  border:1.5px solid var(--border);
+  border-radius:50%;
+  z-index:2;
+  margin:0 -8px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.15);
+  gap:0.05rem;
+  transition:border-color 0.3s,box-shadow 0.3s;
+}
+.fire-icon{
+  width:20px;height:24px;flex-shrink:0;
+  filter:drop-shadow(0 1px 6px rgba(255,140,0,0.5));
+  transition:filter 0.3s;
+}
+.fire-icon svg{width:100%;height:100%;display:block}
+.flame-outer{fill:url(#fg1);animation:flicker 0.7s ease-in-out infinite alternate}
+.flame-mid{fill:url(#fg2);animation:flicker 0.55s ease-in-out 0.1s infinite alternate}
+.flame-tip{fill:#fff5c0;animation:flicker 0.45s ease-in-out 0.2s infinite alternate;opacity:0.9}
+@keyframes flicker{
+  0%  {transform:scaleY(1)    scaleX(1)   ;transform-origin:50% 100%}
+  50% {transform:scaleY(1.07) scaleX(0.95);transform-origin:50% 100%}
+  100%{transform:scaleY(0.95) scaleX(1.05);transform-origin:50% 100%}
+}
+@keyframes pulse-glow{
+  0%,100%{filter:drop-shadow(0 1px 6px rgba(255,140,0,0.45))}
+  50%    {filter:drop-shadow(0 1px 14px rgba(255,140,0,0.9))}
+}
+.fire-num{
+  font:800 1.1rem 'Crimson Pro',serif;
+  color:var(--accent);line-height:1;
+}
+.fire-label{display:none}
+.fire-wrap.cold .fire-icon{filter:none;opacity:0.2}
+.fire-wrap.cold .fire-icon *{animation:none}
+.fire-wrap.cold .fire-num{color:var(--ink3)}
+
+/* ── Stage 2 ── */
+.s2-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;gap:0;
+  animation:fadeUp 0.25s ease both;
+}
+.s2-header{
+  display:flex;flex-direction:column;align-items:center;
+  margin-bottom:2rem;gap:0.3rem;
+}
+.s2-label{
+  font:700 0.5rem 'Crimson Pro',serif;letter-spacing:0.2em;
+  text-transform:uppercase;color:var(--ink3);
+}
+.s2-prompt{
+  font:700 4.5rem 'Shippori Mincho',serif;
+  color:var(--ink);line-height:1;
+  position:relative;
+}
+.s2-prompt::after{
+  content:'';position:absolute;left:0;right:0;bottom:-6px;
+  height:2px;background:var(--accent);border-radius:1px;opacity:0.5;
+}
+.s2-meaning{
+  font:italic 300 0.95rem 'Crimson Pro',serif;
+  color:var(--ink3);margin-top:0.6rem;
+}
+.s2-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:0.6rem;
+  width:100%;max-width:460px;
+}
+.s2-card{
+  aspect-ratio:1;
+  background:var(--card);
+  border:1.5px solid var(--border);
+  border-radius:16px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0.2rem;
+  font:700 2rem 'Shippori Mincho',serif;color:var(--ink);
+  cursor:pointer;position:relative;overflow:hidden;
+  transition:border-color 0.12s,transform 0.12s,box-shadow 0.12s,background 0.12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.s2-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 30% 30%,rgba(212,168,75,0.1),transparent 60%);
+  opacity:0;transition:opacity 0.2s;
+}
+.s2-card:hover::before{opacity:1}
+.s2-card:hover{
+  border-color:var(--accent);
+  transform:translateY(-3px);
+  box-shadow:0 8px 24px rgba(0,0,0,0.18);
+}
+.s2-card:active{transform:translateY(-1px)}
+.s2-card.no{
+  border-color:var(--red);
+  background:rgba(224,90,74,0.08);
+  pointer-events:none;
+  animation:shake 0.3s ease;
+}
+.s2-card.off{opacity:0.12;pointer-events:none}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* stage pill s2 */
+.stage-pill.s2{color:var(--red);border-color:rgba(224,90,74,0.3)}
+
+.fire-wrap:not(.cold) .fire-icon{animation:pulse-glow 2s ease-in-out infinite}
+.fire-wrap:not(.cold){border-color:rgba(255,140,0,0.45);box-shadow:0 2px 14px rgba(255,140,0,0.18);}
+
+/* Stage bar */
+.stage{
+  display:flex;align-items:center;justify-content:center;
+  padding:0.3rem;flex-shrink:0;
+}
+.stage-pill{
+  font:italic 300 0.65rem 'Crimson Pro',serif;color:var(--accent);
+  border:1px solid var(--border);border-radius:99px;
+  padding:0.2rem 0.8rem;
+  display:flex;align-items:center;gap:0.3rem;
+}
+.stage-pill::before{content:'✦';font-size:0.5rem}
+
+/* Quiz body */
+.qbody{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 1.5rem}
+
+/* Kanji + Ring */
+.qk-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:160px;height:160px}
+.timer-ring{position:absolute;inset:0;transform:rotate(-90deg)}
+.qk{font:700 5.5rem 'Shippori Mincho',serif;color:var(--ink);line-height:1;position:relative;z-index:1;cursor:pointer}
+.qk:hover{opacity:0.8}
+.qsub{font:italic 300 0.8rem 'Crimson Pro',serif;color:var(--ink3);margin-top:0.3rem}
+
+/* Peek info */
+.qpeek{
+  font:400 0.8rem 'Noto Sans JP',sans-serif;color:var(--ink2);
+  margin-top:0.3rem;min-height:1.2em;text-align:center;
+  opacity:0;transition:opacity 0.15s;
+}
+.qpeek.show{opacity:1}
+.qpeek .peek-r{color:var(--accent)}
+.qpeek .peek-m{font:italic 300 0.7rem 'Crimson Pro',serif;color:var(--ink3);margin-left:0.3rem}
+
+/* Options — 3 buttons in a row */
+.qo{display:flex;gap:0.5rem;margin-top:1.5rem;width:100%;max-width:420px;justify-content:center}
+.qo button{
+  flex:1;max-width:130px;
+  background:var(--card);border:2px solid var(--border);border-radius:10px;
+  padding:0.7rem 0.3rem;font:500 1rem 'Noto Sans JP',sans-serif;color:var(--ink);
+  cursor:pointer;text-align:center;
+  transition:border-color 0.06s,background 0.06s,color 0.06s;
+  -webkit-tap-highlight-color:transparent;
+}
+.qo button:hover{border-color:var(--ink3)}
+.qo button.ok{border-color:var(--green);background:rgba(76,175,114,0.12);color:var(--green)}
+.qo button.no{border-color:var(--red);background:rgba(224,90,74,0.1);color:var(--red)}
+.prog{width:100%;max-width:520px;margin-top:1.5rem;position:relative}
+.prog-bar{
+  height:4px;border-radius:2px;
+  background:var(--accent);
+  transition:width 0.5s cubic-bezier(0.34,1.3,0.64,1);
+  position:relative;overflow:hidden;
+}
+.prog-bar::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.35) 50%,transparent 100%);
+  background-size:200% 100%;
+  animation:shimmer 2s linear infinite;
+}
+.prog-bar.pulse{animation:gaugePulse 0.4s ease;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes gaugePulse{0%{transform:scaleY(1)}40%{transform:scaleY(2.5)}100%{transform:scaleY(1)}}
+.qo button.off{pointer-events:none;opacity:0.15}
+
+/* Progress */
+
+/* Empty */
+.empty{display:flex;flex-direction:column;align-items:center;gap:0.5rem}
+.empty-k{font:700 4rem 'Noto Serif JP',serif;color:var(--border);opacity:0.4}
+.empty-t{font:italic 300 0.85rem 'Crimson Pro',serif;color:var(--ink3)}
+
+/* ── Kanji Detail Modal ── */
+.kmodal-ov{
+  position:fixed;inset:0;z-index:50;display:none;
+  background:rgba(0,0,0,0);
+  transition:background 0.25s;
+  align-items:center;justify-content:center;
+  padding:2rem;
+}
+.kmodal-ov.show{display:flex;background:rgba(0,0,0,0.65)}
+.kmodal-ov.show .kmodal{opacity:1;transform:scale(1)}
+
+.kmodal{
+  width:min(560px,100%);
+  background:var(--card);
+  border-radius:20px;
+  border:1px solid var(--border);
+  padding:2.5rem;
+  position:relative;
+  box-shadow:0 24px 80px rgba(0,0,0,0.5);
+  opacity:0;
+  transform:scale(0.94);
+  transition:opacity 0.22s,transform 0.26s cubic-bezier(0.34,1.1,0.64,1);
+}
+
+.km-close{
+  position:absolute;top:1rem;right:1rem;
+  background:none;border:1px solid var(--border);
+  color:var(--ink3);font-size:0.85rem;cursor:pointer;
+  width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;transition:color 0.15s,border-color 0.15s;
+}
+.km-close:hover{color:var(--ink);border-color:var(--ink3)}
+
+/* hero row */
+.km-top{
+  display:flex;align-items:center;gap:2rem;
+  padding-bottom:1.5rem;
+  border-bottom:1px solid var(--border);
+  margin-bottom:1.5rem;
+}
+.km-hero{
+  font:700 9rem 'Shippori Mincho',serif;color:var(--ink);line-height:1;
+  flex-shrink:0;
+}
+.km-right{display:flex;flex-direction:column;gap:0.6rem;flex:1}
+.km-meaning{font:italic 600 2rem 'Crimson Pro',serif;color:var(--ink);line-height:1.15}
+.km-tags{display:flex;gap:0.4rem;flex-wrap:wrap}
+.km-tag{
+  font:700 0.48rem 'Crimson Pro',serif;letter-spacing:0.1em;text-transform:uppercase;
+  padding:0.22rem 0.6rem;border-radius:99px;
+}
+.km-tag.lvl{border:1.5px solid var(--accent);color:var(--accent)}
+.km-tag.strk{border:1.5px solid var(--border);color:var(--ink3)}
+.km-readings-row{display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start}
+.km-rgroup{display:flex;flex-direction:column;gap:0.3rem}
+.km-rlabel{font:700 0.44rem 'Crimson Pro',serif;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3)}
+.km-rvals{display:flex;gap:0.3rem;flex-wrap:wrap}
+.km-rval{
+  font:500 1rem 'Noto Sans JP',sans-serif;
+  padding:0.25rem 0.6rem;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg);
+}
+.km-rval.on{color:var(--accent);border-color:rgba(212,168,75,0.35);background:rgba(212,168,75,0.08)}
+.km-rval.kun{color:var(--ink)}
+
+
+/* examples */
+.km-ex-title{font:700 0.46rem 'Crimson Pro',serif;letter-spacing:0.13em;text-transform:uppercase;color:var(--ink3);margin-bottom:0.7rem}
+.km-examples{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.5rem}
+.km-ex{
+  display:flex;flex-direction:column;gap:0.15rem;
+  background:var(--bg2);border-radius:12px;
+  padding:0.7rem 1rem;border:1px solid var(--border);
+}
+.km-ex-word{font:600 1.2rem 'Noto Sans JP',sans-serif;color:var(--ink)}
+.km-ex-reading{font:400 0.75rem 'Noto Sans JP',sans-serif;color:var(--ink3)}
+.km-ex-meaning{font:italic 300 0.75rem 'Crimson Pro',serif;color:var(--accent)}
+
+/* Home btn */
+.fb{position:fixed;background:none;border:1px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;padding:0}
+.fb svg{width:16px;height:16px;stroke:var(--ink3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.fb:hover{border-color:var(--accent)}
+.fb-h{top:1rem;right:4rem}
+.fb-t{top:1rem;right:1.5rem}
+.fb-t .icon-sun{display:none}
+html.dark .fb-t .icon-moon{display:none}
+html.dark .fb-t .icon-sun{display:block}
+
+/* Language selector */
+.fb-lang{top:1rem;right:6.5rem}
+#lang-label{
+  font:600 0.6rem 'Crimson Pro',serif;
+  letter-spacing:0.05em;
+  color:var(--ink3);
+  text-transform:uppercase;
+  transition:color 0.2s;
+}
+.fb-lang:hover #lang-label{color:var(--accent)}
+.lang-drop{
+  position:fixed;top:3.5rem;right:6.5rem;z-index:20;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:0.3rem;display:none;flex-direction:column;
+  box-shadow:0 8px 24px rgba(0,0,0,0.25);
+  min-width:110px;
+}
+.lang-drop.show{display:flex}
+.lang-opt{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0.45rem 0.75rem;border-radius:7px;
+  cursor:pointer;font:400 0.75rem 'Crimson Pro',serif;color:var(--ink2);
+  letter-spacing:0.01em;
+  transition:background 0.15s,color 0.15s;
+}
+.lang-opt:hover{background:rgba(212,168,75,0.07);color:var(--ink)}
+.lang-opt.active{color:var(--accent)}
+.lang-opt.active::after{
+  content:'';width:5px;height:5px;
+  border-radius:50%;background:var(--accent);flex-shrink:0;
+}
+.lang-opt span.flag{font-size:1rem;line-height:1}
+
+/* ═══ Mobile ═══ */
+.mob-tog{display:none}
+.mob-ov{display:none}
+@media(max-width:640px){
+  .panel{position:fixed;left:0;top:0;bottom:0;z-index:20;transform:translateX(-100%);transition:transform 0.25s;width:280px}
+  .panel.open{transform:translateX(0)}
+  .mob-tog{
+    display:flex;position:fixed;top:1rem;left:1rem;z-index:10;
+    background:none;border:1px solid var(--border);border-radius:50%;
+    width:32px;height:32px;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  }
+  .mob-tog svg{width:16px;height:16px;stroke:var(--ink3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .mob-ov.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:15}
+  .qk{font-size:5.5rem}
+  .fb-h{right:6.5rem}
+  .fb-t{right:4rem}
+  .fb-lang{right:9rem}
+  .lang-drop{right:9rem}
+}
+</style>
+</head>
+<body>
+
+
+<button class="fb fb-h" onclick="location.href='index.html'"><svg viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg></button>
+<button class="fb fb-t" onclick="toggleDark()">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+</button>
+<button class="fb fb-lang" id="lang-btn" onclick="toggleLangDrop()"><span id="lang-label">EN</span></button>
+<div class="lang-drop" id="lang-drop">
+  <div class="lang-opt" data-lang="en" onclick="pickLang('en')">English</div>
+  <div class="lang-opt" data-lang="pt" onclick="pickLang('pt')">Português</div>
+  <div class="lang-opt" data-lang="es" onclick="pickLang('es')">Español</div>
+</div>
+<button class="mob-tog" onclick="togPanel()"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+<div class="mob-ov" id="mob-ov" onclick="togPanel()"></div>
+
+<!-- LEFT -->
+<div class="panel" id="panel">
+  <div class="panel-tabs">
+    <div class="ptab active" id="tab-beginner" onclick="switchTab('beginner')">Beginner</div>
+    <div class="ptab" id="tab-jlpt" onclick="switchTab('jlpt')">JLPT</div>
+    <div class="ptab" id="tab-custom" onclick="switchTab('custom')" style="display:none">Custom</div>
+  </div>
+  <div class="panel-inner">
+    <div class="p-head">
+      <div class="p-title" id="p-title">Select Groups</div>
+      <div class="p-btns"><button class="p-btn" id="btn-all" onclick="selAll()">All</button><button class="p-btn" id="btn-none" onclick="selNone()">None</button></div>
+    </div>
+    <div class="p-scroll" id="p-scroll"></div>
+  </div>
+</div>
+
+<!-- RIGHT -->
+<div class="main">
+  <div class="stats">
+   <!-- left pill: correct + wrong -->
+   <div class="stats-card">
+    <div class="st">
+      <svg class="st-icon" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <div class="st-n g" id="sc">0</div>
+      <div class="st-l" id="lbl-correct">Correct</div>
+    </div>
+    <div class="st">
+      <svg class="st-icon" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <div class="st-n r" id="sw">0</div>
+      <div class="st-l" id="lbl-wrong">Wrong</div>
+    </div>
+   </div>
+   <!-- center fire circle -->
+   <div class="fire-wrap cold" id="fire-wrap">
+    <div class="fire-icon">
+      <svg viewBox="0 0 40 48" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="fg1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff6a00"/>
+            <stop offset="100%" stop-color="#ff9d00"/>
+          </linearGradient>
+          <linearGradient id="fg2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffcc00"/>
+            <stop offset="100%" stop-color="#ffaa00"/>
+          </linearGradient>
+        </defs>
+        <path class="flame-outer" d="M20 1C20 1 5 17 5 29c0 8.3 6.7 15 15 15s15-6.7 15-15C35 17 20 1 20 1z"/>
+        <path class="flame-mid" d="M20 13c0 0-8 9-8 16.5c0 4.4 3.6 8 8 8s8-3.6 8-8C28 22 20 13 20 13z"/>
+        <path class="flame-tip" d="M20 24c0 0-4 5-4 8.5c0 2.2 1.8 4 4 4s4-1.8 4-4C24 29 20 24 20 24z"/>
+      </svg>
+    </div>
+    <div class="fire-num" id="ss">0</div>
+    <div class="fire-label" id="lbl-streak">Streak</div>
+   </div>
+  </div>
+  <div class="stage"><div class="stage-pill" id="stage-pill">Stage 1 — Choose the reading</div></div>
+  <div class="qbody" id="qbody">
+    <div class="empty"><div class="empty-k">漢</div><div class="empty-t">Select groups to start</div></div>
+  </div>
+</div>
+
+<script src="kanji-data.js?v=1772803340"></script>
+<script src="i18n.js"></script>
+<script>
+// Build LEVELS from KANJI_DATA (simple format for quiz)
+let LEVELS={};
+const FULL_DATA={};
+function rebuildLevels(){
+  LEVELS={};
+  for(const[lv,groups]of Object.entries(KANJI_DATA)){
+    const allK=groups.flatMap(g=>g.kanji);
+    const hasReadings=allK.filter(k=>k.on.length>0||k.kun.length>0).length;
+    if(hasReadings<allK.length*0.5)continue;
+    LEVELS[lv]=groups.map(g=>({
+      name:g.name,
+      k:g.kanji.filter(k=>k.on.length>0||k.kun.length>0).map(k=>{
+        const simple={k:k.k,r:getQuizReading(k),m:getM(k)};
+        FULL_DATA[k.k]={...k,lv:lv};
+        return simple;
+      })
+    })).filter(g=>g.k.length>0);
+  }
+}
+rebuildLevels();
+
+
+// ═══ Language ═══
+const LANG_LABELS={en:'EN',pt:'PT',es:'ES'};
+function updateLangOpts(){
+  document.querySelectorAll('.lang-opt[data-lang]').forEach(el=>{
+    el.classList.toggle('active', el.dataset.lang===currentLang);
+  });
+}
+function toggleLangDrop(){
+  document.getElementById('lang-drop').classList.toggle('show');
+}
+function pickLang(lang){
+  setLang(lang);
+  document.getElementById('lang-drop').classList.remove('show');
+  document.getElementById('lang-label').textContent=LANG_LABELS[lang]||'EN';updateLangOpts();
+  updateLangUI();
+  // Rebuild quiz with new language
+  rebuildLevels();
+  renderPanel();
+  startQuiz();
+}
+function updateLangUI(){
+  // Update active state in dropdown
+  document.querySelectorAll('.lang-opt[data-lang]').forEach(el=>{
+    el.classList.toggle('active', el.dataset.lang===currentLang);
+  });
+  // Update UI labels
+  const $ = id => document.getElementById(id);
+  if($('p-title'))$('p-title').textContent=t('quiz_select_groups');
+  if($('btn-all'))$('btn-all').textContent=t('quiz_all');
+  if($('btn-none'))$('btn-none').textContent=t('quiz_none');
+  if($('lbl-correct'))$('lbl-correct').textContent=t('quiz_correct');
+  if($('lbl-wrong'))$('lbl-wrong').textContent=t('quiz_wrong');
+  if($('lbl-streak'))$('lbl-streak').textContent=t('quiz_streak');
+  if($('stage-pill'))$('stage-pill').textContent=t('quiz_stage');
+}
+// Close dropdown when clicking outside
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.fb-lang')&&!e.target.closest('.lang-drop')){
+    document.getElementById('lang-drop').classList.remove('show');
+  }
+});
+// Init flag
+(function(){document.getElementById('lang-label').textContent=LANG_LABELS[currentLang]||'EN';updateLangOpts();})();
+
+// ═══ Sound ═══
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+function playCorrect(){
+  const t=audioCtx.currentTime;
+  const g=audioCtx.createGain();g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.06,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+  const o=audioCtx.createOscillator();o.type='sine';
+  o.frequency.setValueAtTime(523,t);// C5
+  o.frequency.setValueAtTime(659,t+0.12);// E5
+  o.connect(g);o.start(t);o.stop(t+0.5);
+}
+function playWrong(){
+  const t=audioCtx.currentTime;
+  const g=audioCtx.createGain();g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.04,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+  const o=audioCtx.createOscillator();o.type='sine';
+  o.frequency.setValueAtTime(250,t);o.frequency.setValueAtTime(200,t+0.1);
+  o.connect(g);o.start(t);o.stop(t+0.2);
+}
+
+// State
+const sel=new Set();
+let pool=[],qi=0,nC=0,nW=0,streak=0,busy=false;
+let timerRAF=null;
+const CIRCUMFERENCE=2*Math.PI*76;
+const STREAK_GOAL=20;
+let stage=1; // 1 or 2
+let gaugePts=0; // gauge points, drops by 5 on wrong
+
+function getTimerSecs(){return Math.max(5,15-Math.floor(streak/5))}
+
+// ═══ Panel ═══
+const BEGINNER_LEVELS = ['Hiragana','Katakana'];
+const JLPT_LEVELS = ['N5','N4','N3','N2','N1'];
+let activeTab = 'beginner';
+
+function switchTab(tab){
+  activeTab = tab;
+  document.getElementById('tab-beginner').classList.toggle('active', tab==='beginner');
+  document.getElementById('tab-jlpt').classList.toggle('active', tab==='jlpt');
+  document.getElementById('tab-custom').classList.toggle('active', tab==='custom');
+  if(tab==='custom'){ renderCustomPanel(); startQuiz(); }
+  else renderPanel();
+}
+
+function renderPanel(){
+  const allowed = activeTab==='beginner' ? BEGINNER_LEVELS : JLPT_LEVELS;
+  let h='';
+  Object.entries(LEVELS).forEach(([lv,gs])=>{
+    if(!allowed.includes(lv)) return;
+    const allOn=gs.every((_,i)=>sel.has(lv+'-'+i));
+    h+=`<div class="lh" onclick="togLvl('${lv}')"><div class="lh-badge">${lv}</div><div class="lh-line"></div><div class="lh-chk ${allOn?'on':''}"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div></div>`;
+    h+=`<div class="tile-grid">`;
+    gs.forEach((g,i)=>{
+      const id=lv+'-'+i,on=sel.has(id);
+      const preview=g.k.slice(0,8).map(x=>`<div class="tile-k">${x.k}</div>`).join('');
+      h+=`<div class="tile ${on?'on':''}" onclick="togGrp('${id}')">
+        <div class="tile-head"><div class="tile-name">${tGroup(g.name)}</div><div class="tile-n">${g.k.length}</div></div>
+        <div class="tile-kanji">${preview}</div>
+      </div>`;
+    });
+    h+=`</div>`;
+  });
+  document.getElementById('p-scroll').innerHTML=h;
+}
+
+function togGrp(id){sel.has(id)?sel.delete(id):sel.add(id);renderPanel();startQuiz()}
+function togLvl(lv){const gs=LEVELS[lv],all=gs.every((_,i)=>sel.has(lv+'-'+i));gs.forEach((_,i)=>{const id=lv+'-'+i;all?sel.delete(id):sel.add(id)});renderPanel();startQuiz()}
+function selAll(){const allowed=activeTab==='beginner'?BEGINNER_LEVELS:JLPT_LEVELS;Object.entries(LEVELS).forEach(([l,gs])=>{if(!allowed.includes(l))return;gs.forEach((_,i)=>sel.add(l+'-'+i))});renderPanel();startQuiz()}
+function selNone(){const allowed=activeTab==='beginner'?BEGINNER_LEVELS:JLPT_LEVELS;Object.entries(LEVELS).forEach(([l,gs])=>{if(!allowed.includes(l))return;gs.forEach((_,i)=>sel.delete(l+'-'+i))});renderPanel();startQuiz()}
+
+function togPanel(){document.getElementById('panel').classList.toggle('open');document.getElementById('mob-ov').classList.toggle('show')}
+
+// ═══ Custom Set (from Dex) ═══
+let customPool = null;
+let customLabel = '';
+(function loadCustomSet(){
+  try{
+    const raw = localStorage.getItem('kanjipro_custom_set');
+    if(!raw) return;
+    const keys = JSON.parse(raw);
+    customLabel = localStorage.getItem('kanjipro_custom_label') || 'Custom';
+    // Build pool from ALL_DATA
+    customPool = keys.filter(k => {
+      for(const lv of Object.keys(LEVELS)){
+        for(const g of LEVELS[lv]){ if(g.k.find(x=>x.k===k)) return true; }
+      }
+      return true; // keep even if not found
+    });
+    if(customPool.length > 0){
+      // Show custom tab and auto-select it
+      const tab = document.getElementById('tab-custom');
+      tab.style.display = '';
+      tab.textContent = customLabel.length > 12 ? 'Custom' : customLabel;
+    }
+  }catch(e){}
+})();
+
+function renderCustomPanel(){
+  if(!customPool || customPool.length === 0){
+    document.getElementById('p-scroll').innerHTML = '<div style="padding:1rem;font:italic 300 0.85rem Crimson Pro,serif;color:var(--ink3)">No custom set loaded.<br>Go to Dex to build one.</div>';
+    return;
+  }
+  const label = customLabel || 'Custom Set';
+  const preview = customPool.slice(0,12).join(' ');
+  document.getElementById('p-scroll').innerHTML = `
+    <div style="padding:0.8rem 0">
+      <div style="font:600 0.6rem Crimson Pro,serif;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:0.5rem">${label}</div>
+      <div style="font:400 1.1rem Noto Sans JP,sans-serif;color:var(--ink);line-height:2;letter-spacing:0.1em">${preview}${customPool.length>12?' …':''}</div>
+      <div style="font:italic 300 0.75rem Crimson Pro,serif;color:var(--accent);margin-top:0.5rem">${customPool.length} kanji in this set</div>
+      <button onclick="clearCustomSet()" style="margin-top:1rem;background:none;border:1px solid var(--border);border-radius:99px;padding:0.25rem 0.8rem;font:600 0.55rem Crimson Pro,serif;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);cursor:pointer">Clear set</button>
+    </div>`;
+}
+
+function clearCustomSet(){
+  try{ localStorage.removeItem('kanjipro_custom_set'); localStorage.removeItem('kanjipro_custom_label'); }catch(e){}
+  customPool = null;
+  document.getElementById('tab-custom').style.display = 'none';
+  switchTab('beginner');
+}
+
+// ═══ Quiz ═══
+function buildPool(){
+  if(activeTab==='custom' && customPool){
+    // build from full data
+    const p=[];
+    for(const k of customPool){
+      for(const lv of Object.keys(LEVELS)){
+        for(const g of LEVELS[lv]){
+          const found=g.k.find(x=>x.k===k);
+          if(found){p.push(found);break;}
+        }
+        if(p[p.length-1]?.k===k) break;
+      }
+    }
+    return sh(p);
+  }
+  const p=[];
+  sel.forEach(id=>{const[l,i]=id.split('-');p.push(...LEVELS[l][+i].k)});
+  return sh(p);
+}
+
+function startQuiz(){
+  clearTimer();
+  stage=1;
+  const pill=document.getElementById('stage-pill');
+  if(pill){pill.textContent='Stage 1 — Choose the reading';pill.classList.remove('s2');}
+
+  pool=buildPool();qi=0;nC=0;nW=0;streak=0;gaugePts=0;busy=false;
+  upStats();
+  if(!pool.length){
+    document.getElementById('qbody').innerHTML='<div class="empty"><div class="empty-k">漢</div><div class="empty-t">'+t('quiz_empty')+'</div></div>';
+    return;
+  }
+  show();
+}
+
+function show(){
+  if(qi>=pool.length){
+    const lastK=pool[pool.length-1].k;
+    pool=sh(pool);
+    // Ensure first kanji after reshuffle isn't the same as last
+    if(pool.length>1&&pool[0].k===lastK){
+      const swap=1+Math.floor(Math.random()*(pool.length-1));
+      [pool[0],pool[swap]]=[pool[swap],pool[0]];
+    }
+    qi=0;
+  }
+  busy=false;
+  clearTimer();
+  closeModal();
+  const c=pool[qi];
+  const allK=pool.length>=3?pool:buildAllFromSel();
+  const wr=sh(allK.filter(x=>x.r!==c.r)).slice(0,2);
+  const opts=sh([...wr,c]);
+
+  const _sp=Math.min(gaugePts/STREAK_GOAL*100,100),_sc=_sp>=70?'linear-gradient(90deg,var(--accent),#ff9d00)':'var(--accent)';
+  document.getElementById('qbody').innerHTML=`
+    <div class="qk-wrap">
+      <svg class="timer-ring" viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r="76" fill="none" stroke-width="3" stroke="var(--border)" opacity="0.3"/>
+        <circle cx="80" cy="80" r="76" fill="none" stroke-width="3" stroke="var(--accent)" stroke-linecap="round" stroke-dasharray="477.5" stroke-dashoffset="0" id="ring-fg"/>
+      </svg>
+      <div class="qk" id="qk" onclick="openKanjiInfo()" title="Click to peek">${c.k}</div>
+    </div>
+    <div class="qpeek" id="qpeek"></div>
+    <div class="qo">${opts.map(o=>`<button onclick="pick(this,'${esc(o.r)}','${esc(c.r)}')">${o.r}</button>`).join('')}</div>
+    <div class="prog"><div class="prog-bar" id="prog-bar" style="width:0%;background:${_sc}"></div></div>
+  `;
+  startTimer(c);
+  requestAnimationFrame(()=>{
+    const pb=document.getElementById('prog-bar');
+    if(pb) requestAnimationFrame(()=>{pb.style.width=_sp+'%';});
+  });
+}
+
+function startTimer(cur){
+  const secs=getTimerSecs();
+  const start=performance.now();
+  const ring=document.getElementById('ring-fg');
+  if(!ring)return;
+
+  function tick(){
+    const elapsed=(performance.now()-start)/1000;
+    const pct=Math.min(elapsed/secs,1);
+    const offset=CIRCUMFERENCE*pct;
+    ring.style.strokeDashoffset=-offset;
+    // Color shift: gold → red in last 3s
+    const remaining=secs-elapsed;
+    if(remaining<=3)ring.style.stroke='var(--red)';
+    else ring.style.stroke='var(--accent)';
+
+    if(pct>=1){
+      // Time's up — count as wrong
+      if(!busy){
+        busy=true;
+        playWrong();
+        nW++;streak=0;gaugePts=Math.max(gaugePts-5,0);
+        upStats();
+        // Show correct answer
+        const co=cur.r;
+        document.querySelectorAll('#qbody .qo button').forEach(b=>{
+          if(b.textContent===co)b.classList.add('ok');
+          else b.classList.add('off');
+          b.style.pointerEvents='none';
+        });
+        revealInfo();
+        // Wait for click/key to advance (same as wrong answer)
+        const advance=()=>{
+          document.removeEventListener('click',adv2);
+          document.removeEventListener('keydown',adv2);
+          qi++;show();
+        };
+        const adv2=(e)=>{
+          if(e.type==='keydown'&&e.key==='Escape')return;
+          // Don't advance if clicking inside modal or on kanji (for info)
+          if(e.type==='click'){
+            const modal=document.getElementById('kmodal-ov');
+            if(modal.classList.contains('show'))return;
+            if(e.target.closest('.qk'))return;
+          }
+          setTimeout(()=>{peeked=false;advance()},0);
+        };
+        setTimeout(()=>{
+          document.addEventListener('click',adv2,{once:false});
+          document.addEventListener('keydown',adv2,{once:false});
+        },100);
+      }
+      return;
+    }
+    timerRAF=requestAnimationFrame(tick);
+  }
+  timerRAF=requestAnimationFrame(tick);
+}
+
+function clearTimer(){
+  if(timerRAF)cancelAnimationFrame(timerRAF);
+  timerRAF=null;
+}
+
+function buildAllFromSel(){
+  const p=[];
+  Object.values(LEVELS).forEach(gs=>gs.forEach(g=>p.push(...g.k)));
+  return p;
+}
+
+let peeked=false;
+
+function showKanjiModal(kanjiChar){
+  const fd=FULL_DATA[kanjiChar];
+  if(!fd)return;
+  
+  // Pause timer
+  clearTimer();
+  
+  // Detect kana
+  const isKana = fd.lv==='Hiragana'||fd.lv==='Katakana';
+
+  document.getElementById('km-k').textContent=fd.k;
+  // For kana, meaning IS the romaji — show it large as the "meaning"
+  const meaning = isKana ? (fd.on[0]||fd.m||'') : (getM(fd));
+  document.getElementById('km-m').textContent=meaning;
+
+  // Tags
+  const tags=[];
+  if(fd.lv)tags.push(`<span class="km-tag lvl">${fd.lv}</span>`);
+  if(fd.s)tags.push(`<span class="km-tag strk">${fd.s} ${isKana?'strokes':'strokes'}</span>`);
+  document.getElementById('km-tags').innerHTML=tags.join('');
+
+  // Readings — hide entirely for kana (romaji already shown as meaning)
+  document.getElementById('km-readings').innerHTML='';
+  
+  // Examples
+  const exTitle=document.getElementById('km-ex-title');
+  const exEl=document.getElementById('km-ex');
+  exTitle.textContent=isKana?'Words with this sound':'Examples';
+  if(fd.ex&&fd.ex.length>0){
+    exTitle.style.display='';
+    exEl.style.display='';
+    exEl.innerHTML=fd.ex.map(e=>
+      `<div class="km-ex"><div class="km-ex-word">${e.w}</div>${isKana?'':'<div class="km-ex-reading">'+e.r+'</div>'}<div class="km-ex-meaning">${getExM(e)}</div></div>`
+    ).join('');
+  }else{
+    exTitle.style.display='none';
+    exEl.style.display='none';
+  }
+  
+  document.getElementById('kmodal-ov').classList.add('show');
+}
+
+function handleOvClick(e){if(e.target===document.getElementById('kmodal-ov'))closeModal();}
+
+function closeModal(){
+  const ov=document.getElementById('kmodal-ov');
+  if(ov.classList.contains('show')){
+    ov.classList.remove('show');
+    // Resume timer if quiz is active and not answered yet
+    if(!busy&&pool.length>0&&qi<pool.length){
+      startTimer(pool[qi]);
+    }
+  }
+}
+
+function openKanjiInfo(){
+  // Before answering = peek (no point), after answering = just info
+  if(!busy) peeked=true;
+  const c=pool[qi];
+  showKanjiModal(c.k);
+}
+
+function revealInfo(){
+  // Show small inline reading after answer (not modal — modal is for peek)
+  const c=pool[qi];
+  const el=document.getElementById('qpeek');
+  if(el){
+    el.innerHTML=`<span class="peek-r">${c.r}</span><span class="peek-m">${c.m}</span>`;
+    el.classList.add('show');
+  }
+}
+
+function pick(btn,ch,co){
+  if(busy)return;
+  busy=true;
+  clearTimer();
+  const c=pool[qi];
+  const ok=ch===co;
+
+  // If peeked, no point
+  const getsPoint=ok&&!peeked;
+
+  if(getsPoint){
+    btn.classList.add('ok');
+    nC++;streak++;
+    const toS2=upStats();
+    playCorrect();
+    if(!toS2) revealInfo();
+    if(toS2) requestAnimationFrame(()=>{qi++;clearTimer();showStage2()});
+    else requestAnimationFrame(()=>{qi++;peeked=false;show()});
+  } else if(ok&&peeked){
+    // Correct but peeked — no point, just advance
+    btn.classList.add('ok');
+    const toS2b=upStats();
+    playCorrect();
+    if(!toS2b) revealInfo();
+    if(toS2b) requestAnimationFrame(()=>{qi++;clearTimer();showStage2()});
+    else requestAnimationFrame(()=>{qi++;peeked=false;show()});
+  } else {
+    // Wrong
+    btn.classList.add('no');
+    playWrong();
+    document.querySelectorAll('#qbody .qo button').forEach(b=>{
+      if(b.textContent===co)b.classList.add('ok');
+      else if(!b.classList.contains('no'))b.classList.add('off');
+      b.style.pointerEvents='none';
+    });
+    nW++;streak=0;gaugePts=Math.max(gaugePts-5,0);
+    upStats();
+    revealInfo();
+    // Wait for click/key to advance
+    const advance=()=>{
+      document.removeEventListener('click',adv);
+      document.removeEventListener('keydown',adv);
+      qi++;show();
+    };
+    const adv=(e)=>{
+      if(e.type==='keydown'&&e.key==='Escape')return;
+      // Don't advance if clicking inside modal or on kanji (for info)
+      if(e.type==='click'){
+        const modal=document.getElementById('kmodal-ov');
+        if(modal.classList.contains('show'))return;
+        if(e.target.closest('.qk'))return;
+      }
+      setTimeout(()=>{peeked=false;advance()},0);
+    };
+    // Delay attaching so current click doesn't fire it
+    setTimeout(()=>{
+      document.addEventListener('click',adv,{once:false});
+      document.addEventListener('keydown',adv,{once:false});
+    },100);
+  }
+}
+
+function upStats(){
+  document.getElementById('sc').textContent=nC;
+  document.getElementById('sw').textContent=nW;
+  document.getElementById('ss').textContent=streak;
+
+  const fw=document.getElementById('fire-wrap');
+  if(streak>0)fw.classList.remove('cold');
+  else fw.classList.add('cold');
+
+  // gauge
+  const prevPts=gaugePts;
+  if(streak>gaugePts) gaugePts=streak;
+  if(gaugePts>prevPts){
+    // pulse after next render
+    setTimeout(()=>{const pb=document.querySelector('.prog-bar');if(pb){pb.classList.remove('pulse');void pb.offsetWidth;pb.classList.add('pulse');}},50);
+  }
+
+  // returns true if stage 2 was just triggered
+  if(gaugePts>=STREAK_GOAL && stage===1){
+    stage=2;
+    const pill=document.getElementById('stage-pill');
+    pill.textContent='Stage 2 — Find the kanji';
+    pill.classList.add('s2');
+    return true; // signal to caller
+  }
+  return false;
+}
+
+// ═══ Stage 2 ═══
+function showStage2(){
+  busy=false;
+  peeked=false;
+  closeModal();
+  // pick a target from pool
+  if(qi>=pool.length){
+    const lastK=pool[pool.length-1].k;
+    pool=sh(pool);
+    if(pool.length>1&&pool[0].k===lastK){const sw=1+Math.floor(Math.random()*(pool.length-1));[pool[0],pool[sw]]=[pool[sw],pool[0]];}
+    qi=0;
+  }
+  const target=pool[qi];
+  // pick 7 distractors (different kanji char)
+  const allK=pool.length>=8?pool:buildAllFromSel();
+  const others=sh(allK.filter(x=>x.k!==target.k)).slice(0,7);
+  const cards=sh([...others,target]);
+
+  const streakPct=Math.min(gaugePts/STREAK_GOAL*100,100),streakCol=streakPct>=70?'linear-gradient(90deg,var(--accent),#ff9d00)':'var(--accent)';
+  document.getElementById('qbody').innerHTML=`
+    <div class="s2-wrap">
+      <div class="s2-header">
+        <div class="s2-label">Find the kanji for</div>
+        <div class="s2-prompt">${target.r}</div>
+        <div class="s2-meaning">${getM(target)}</div>
+      </div>
+      <div class="s2-grid">
+        ${cards.map(card=>`<div class="s2-card" onclick="pickS2(this,'${esc(card.k)}','${esc(target.k)}')">
+          ${card.k}
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="prog"><div class="prog-bar" id="prog-bar" style="width:0%;background:${streakCol}"></div></div>
+  `;
+  requestAnimationFrame(()=>{
+    const pb=document.getElementById('prog-bar');
+    if(pb) requestAnimationFrame(()=>{pb.style.width=streakPct+'%';});
+  });
+}
+
+function pickS2(btn,chosen,correct){
+  if(busy)return;
+  busy=true;
+  if(chosen===correct){
+    btn.classList.add('ok');
+    nC++;streak++;
+    upStats();
+    playCorrect();
+    requestAnimationFrame(()=>{qi++;showStage2()});
+  } else {
+    btn.classList.add('no');
+    document.querySelectorAll('.s2-card').forEach(b=>{
+      if(b.textContent===correct)b.classList.add('ok');
+      else if(!b.classList.contains('no'))b.classList.add('off');
+    });
+    nW++;streak=0;gaugePts=Math.max(gaugePts-5,0);
+    upStats();
+    playWrong();
+    // drop back to stage 1
+    stage=1;
+    const pill=document.getElementById('stage-pill');
+    pill.textContent='Stage 1 — Choose the reading';
+    pill.classList.remove('s2');
+
+    setTimeout(()=>{ qi++; show(); },800);
+  }
+}
+
+function sh(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+function esc(s){return s.replace(/'/g,"\\'")}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();togPanel()}});
+
+// Auto-switch to custom tab if set exists
+if(customPool && customPool.length > 0){
+  switchTab('custom');
+} else {
+  renderPanel();
+}
+updateLangUI();
+
+</script>
+<!-- Kanji Detail — Bottom Sheet -->
+<div class="kmodal-ov" id="kmodal-ov" onclick="handleOvClick(event)">
+  <div class="kmodal">
+    <button class="km-close" onclick="closeModal()">✕</button>
+    <div class="km-top">
+      <div class="km-hero" id="km-k"></div>
+      <div class="km-right">
+        <div class="km-meaning" id="km-m"></div>
+        <div class="km-tags" id="km-tags"></div>
+        <div class="km-readings-row" id="km-readings"></div>
+      </div>
+    </div>
+    <div class="km-ex-title" id="km-ex-title">Examples</div>
+    <div class="km-examples" id="km-ex"></div>
+  </div>
+</div>
+
+</body>
+</html>

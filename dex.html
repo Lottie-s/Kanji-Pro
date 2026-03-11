@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+function toggleDark(){var d=document.documentElement.classList.toggle('dark');try{localStorage.setItem('kanjipro_dark',d?'1':'0')}catch(e){}}
+(function(){var s=null;try{s=localStorage.getItem('kanjipro_dark')}catch(e){}var d=s!==null?s==='1':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kanji Pro — Dex</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f0e8;--bg2:#ede8dc;--ink:#1a1410;--ink2:#5a5040;--ink3:#8a7f6e;--accent:#b8860b;--red:#c0392b;--green:#27ae60;--border:#d4cfc4;--card:#fff}
+html.dark{--bg:#1a1814;--bg2:#211e19;--ink:#e8e0d0;--ink2:#b0a898;--ink3:#706858;--accent:#d4a84b;--red:#e05a4a;--green:#4caf72;--border:#3a342c;--card:#2a2520}
+html,body{min-height:100vh}
+body{background:var(--bg);color:var(--ink);font-family:'Crimson Pro',serif;transition:background 0.3s,color 0.3s}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 24px,rgba(26,20,16,0.025) 24px,rgba(26,20,16,0.025) 25px),
+    repeating-linear-gradient(90deg,transparent,transparent 24px,rgba(26,20,16,0.01) 24px,rgba(26,20,16,0.01) 25px);
+}
+html.dark body::before{opacity:0.3}
+
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:2rem 1.5rem 5rem}
+
+/* top bar */
+.topbar{display:flex;align-items:center;gap:0.8rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:2px solid var(--border)}
+.back-btn{background:none;border:1px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:border-color 0.15s}
+.back-btn:hover{border-color:var(--accent)}
+.back-btn svg{width:14px;height:14px;stroke:var(--ink3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.logo{font-family:'Noto Serif JP',serif;font-size:2rem;font-weight:700;letter-spacing:-2px;color:var(--ink);line-height:1}
+.logo span{color:var(--red)}
+
+/* fixed buttons */
+.fb{position:fixed;background:none;border:1px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;padding:0;transition:border-color 0.2s}
+.fb svg{width:16px;height:16px;stroke:var(--ink3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.fb:hover{border-color:var(--accent)}
+.fb-dark{top:1rem;right:1.5rem}
+.fb-dark .icon-sun{display:none}
+html.dark .fb-dark .icon-moon{display:none}
+html.dark .fb-dark .icon-sun{display:block}
+
+/* search */
+.search-wrap{position:relative;margin-bottom:1.5rem}
+.search-icon{position:absolute;left:1rem;top:50%;transform:translateY(-50%);pointer-events:none}
+.search-icon svg{width:15px;height:15px;stroke:var(--ink3);fill:none;stroke-width:2;stroke-linecap:round}
+#search{
+  width:100%;background:var(--card);
+  border:1.5px solid var(--border);border-radius:12px;
+  padding:0.75rem 2.5rem 0.75rem 2.8rem;
+  font:400 1rem 'Crimson Pro',serif;color:var(--ink);
+  outline:none;transition:border-color 0.2s,box-shadow 0.2s;
+}
+#search::placeholder{color:var(--ink3);font-style:italic}
+#search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(184,134,11,0.1)}
+.search-clear{position:absolute;right:0.8rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);font-size:1rem;display:none;padding:0.2rem;transition:color 0.15s}
+.search-clear:hover{color:var(--ink)}
+.search-clear.show{display:block}
+
+/* results info */
+.results-info{font:italic 300 0.85rem 'Crimson Pro',serif;color:var(--ink3);margin-bottom:1.2rem;min-height:1.2em}
+.results-info strong{font-style:normal;font-weight:600;color:var(--accent)}
+
+/* level section */
+.level-section{margin-bottom:2.5rem;animation:fadeUp 0.3s ease both}
+.level-header{display:flex;align-items:baseline;gap:0.8rem;margin-bottom:0.8rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)}
+.level-name{font:700 1rem 'Noto Serif JP',serif;color:var(--ink)}
+.level-count{font:italic 300 0.78rem 'Crimson Pro',serif;color:var(--ink3)}
+
+/* grid */
+.kanji-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:0.4rem}
+
+/* card */
+.k-card{
+  aspect-ratio:1;background:var(--card);border:1.5px solid var(--border);border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.15rem;
+  cursor:pointer;position:relative;overflow:hidden;
+  transition:border-color 0.12s,transform 0.12s,box-shadow 0.12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.k-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,rgba(212,168,75,0.08),transparent 60%);opacity:0;transition:opacity 0.2s}
+.k-card:hover::before{opacity:1}
+.k-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.12)}
+.k-card.fav{border-color:rgba(184,134,11,0.6);background:rgba(184,134,11,0.04)}
+.k-char{font:700 1.9rem 'Shippori Mincho',serif;color:var(--ink);line-height:1}
+.k-mean{font:300 0.52rem 'Crimson Pro',serif;color:var(--ink3);text-align:center;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-card.kana .k-char{font-size:1.6rem}
+.k-card.kana .k-mean{font-weight:400;font-size:0.6rem;color:var(--accent);font-style:normal;letter-spacing:0.04em}
+.k-fav{position:absolute;top:4px;right:5px;font-size:0.65rem;color:var(--ink3);opacity:0;transition:opacity 0.15s,color 0.15s;background:none;border:none;padding:2px;cursor:pointer;line-height:1}
+.k-card:hover .k-fav,.k-card.fav .k-fav{opacity:1}
+.k-card.fav .k-fav{color:var(--accent)}
+
+/* empty */
+.empty{text-align:center;padding:4rem;animation:fadeUp 0.3s ease both}
+.empty-k{font:700 5rem 'Shippori Mincho',serif;color:var(--border);opacity:0.5;line-height:1}
+.empty-t{font:italic 300 0.9rem 'Crimson Pro',serif;color:var(--ink3);margin-top:0.5rem}
+
+/* modal — exact same as quiz */
+.kmodal-ov{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:2rem}
+.kmodal-ov.show{display:flex;background:rgba(0,0,0,0.65)}
+.kmodal-ov.show .kmodal{opacity:1;transform:scale(1)}
+.kmodal{width:min(560px,100%);background:var(--card);border-radius:20px;border:1px solid var(--border);padding:2.5rem;position:relative;box-shadow:0 24px 80px rgba(0,0,0,0.5);opacity:0;transform:scale(0.94);transition:opacity 0.22s,transform 0.26s cubic-bezier(0.34,1.1,0.64,1);max-height:90vh;overflow-y:auto}
+.km-close{position:absolute;top:1rem;right:1rem;background:none;border:1px solid var(--border);color:var(--ink3);font-size:0.85rem;cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:color 0.15s,border-color 0.15s}
+.km-close:hover{color:var(--ink);border-color:var(--ink3)}
+.km-top{display:flex;align-items:center;gap:2rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+.km-hero{font:700 9rem 'Shippori Mincho',serif;color:var(--ink);line-height:1;flex-shrink:0}
+.km-right{display:flex;flex-direction:column;gap:0.6rem;flex:1}
+.km-meaning{font:italic 600 2rem 'Crimson Pro',serif;color:var(--ink);line-height:1.15}
+.km-tags{display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center}
+.km-tag{font:700 0.48rem 'Crimson Pro',serif;letter-spacing:0.1em;text-transform:uppercase;padding:0.22rem 0.6rem;border-radius:99px}
+.km-tag.lvl{border:1.5px solid var(--accent);color:var(--accent)}
+.km-tag.strk{border:1.5px solid var(--border);color:var(--ink3)}
+.km-fav-btn{margin-left:auto;background:none;border:1.5px solid var(--border);border-radius:99px;padding:0.22rem 0.8rem;cursor:pointer;font:600 0.6rem 'Crimson Pro',serif;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);transition:all 0.15s}
+.km-fav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.km-fav-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(184,134,11,0.08)}
+.km-readings-row{display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start}
+.km-rgroup{display:flex;flex-direction:column;gap:0.3rem}
+.km-rlabel{font:700 0.44rem 'Crimson Pro',serif;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3)}
+.km-rvals{display:flex;gap:0.3rem;flex-wrap:wrap}
+.km-rval{font:500 1rem 'Noto Sans JP',sans-serif;padding:0.25rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--bg2)}
+.km-rval.on{color:var(--accent);border-color:rgba(212,168,75,0.35);background:rgba(212,168,75,0.08)}
+.km-rval.kun{color:var(--ink)}
+.km-ex-title{font:700 0.46rem 'Crimson Pro',serif;letter-spacing:0.13em;text-transform:uppercase;color:var(--ink3);margin-bottom:0.7rem}
+.km-examples{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:0.5rem}
+.km-ex{display:flex;flex-direction:column;gap:0.15rem;background:var(--bg2);border-radius:12px;padding:0.7rem 1rem;border:1px solid var(--border)}
+.km-ex-word{font:600 1.2rem 'Noto Sans JP',sans-serif;color:var(--ink)}
+.km-ex-reading{font:400 0.75rem 'Noto Sans JP',sans-serif;color:var(--ink3)}
+.km-ex-meaning{font:italic 300 0.75rem 'Crimson Pro',serif;color:var(--accent)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<button class="fb fb-dark" onclick="toggleDark()">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+
+<div class="wrap">
+  <div class="topbar">
+    <button class="back-btn" onclick="location.href='index.html'">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="logo">漢字<span>Pro</span> — Dex</div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+    <input id="search" type="text" placeholder="Search by kanji, meaning, or reading…" oninput="onSearch(this.value)" autocomplete="off" spellcheck="false">
+    <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+  </div>
+
+  <div class="results-info" id="results-info"></div>
+  <div id="dex-content"></div>
+</div>
+
+<!-- Modal -->
+<div class="kmodal-ov" id="kmodal-ov" onclick="if(event.target===this)closeModal()">
+  <div class="kmodal">
+    <button class="km-close" onclick="closeModal()">✕</button>
+    <div class="km-top">
+      <div class="km-hero" id="km-k"></div>
+      <div class="km-right">
+        <div class="km-meaning" id="km-m"></div>
+        <div class="km-tags" id="km-tags"></div>
+        <div class="km-readings-row" id="km-readings"></div>
+      </div>
+    </div>
+    <div class="km-ex-title" id="km-ex-title" style="display:none"></div>
+    <div class="km-examples" id="km-ex"></div>
+  </div>
+</div>
+
+<script src="kanji-data.js"></script>
+<script>
+const LEVEL_ORDER = ['N5','N4','N3','N2','N1','Hiragana','Katakana'];
+const ALL_DATA = {};
+const LEVEL_DATA = {};
+
+for(const lv of LEVEL_ORDER){
+  if(!KANJI_DATA[lv]) continue;
+  LEVEL_DATA[lv] = [];
+  for(const g of KANJI_DATA[lv]){
+    for(const e of g.kanji){
+      const item = {...e, lv, group: g.name};
+      ALL_DATA[e.k] = item;
+      LEVEL_DATA[lv].push(item);
+    }
+  }
+}
+
+let favSet;
+try{ favSet=new Set(JSON.parse(localStorage.getItem('kanjipro_favs')||'[]')); }catch(e){ favSet=new Set(); }
+function saveFavs(){ try{ localStorage.setItem('kanjipro_favs',JSON.stringify([...favSet])); }catch(e){} }
+
+function toggleFav(k,e){
+  if(e) e.stopPropagation();
+  favSet.has(k)?favSet.delete(k):favSet.add(k);
+  saveFavs();
+  document.querySelector(`.k-card[data-k="${CSS.escape(k)}"]`)?.classList.toggle('fav',favSet.has(k));
+  const fb=document.getElementById('km-fav-btn');
+  if(fb){ fb.classList.toggle('on',favSet.has(k)); fb.textContent=favSet.has(k)?'★ Saved':'☆ Favorite'; }
+}
+
+const LANG=(()=>{try{return localStorage.getItem('kanjipro_lang')||'en'}catch(e){return 'en'}})();
+function getM(d){ return LANG==='pt'&&d.m_pt?d.m_pt:LANG==='es'&&d.m_es?d.m_es:d.m; }
+
+let searchQuery='';
+
+function onSearch(v){
+  searchQuery=v.trim().toLowerCase();
+  document.getElementById('search-clear').classList.toggle('show',v.length>0);
+  render();
+}
+function clearSearch(){
+  document.getElementById('search').value='';
+  searchQuery='';
+  document.getElementById('search-clear').classList.remove('show');
+  render();
+}
+
+function render(){
+  const isKana=lv=>lv==='Hiragana'||lv==='Katakana';
+  const q=searchQuery;
+  let total=0;
+  let html='';
+
+  for(const lv of LEVEL_ORDER){
+    if(!LEVEL_DATA[lv]) continue;
+    let items=LEVEL_DATA[lv];
+    if(q) items=items.filter(d=>
+      d.k.includes(q)||d.m.toLowerCase().includes(q)||
+      (d.m_pt&&d.m_pt.toLowerCase().includes(q))||
+      d.on.some(r=>r.toLowerCase().includes(q))||
+      d.kun.some(r=>r.toLowerCase().includes(q))||
+      (d.ex&&d.ex.some(e=>e.w.includes(q)||e.m.toLowerCase().includes(q)))
+    );
+    if(!items.length) continue;
+    total+=items.length;
+
+    html+=`<div class="level-section">
+      <div class="level-header">
+        <div class="level-name">${lv}</div>
+        <div class="level-count">${items.length} characters</div>
+      </div>
+      <div class="kanji-grid">`;
+    for(const d of items){
+      const fav=favSet.has(d.k);
+      const meaning=isKana(lv)?(d.on[0]||d.m):getM(d);
+      html+=`<div class="k-card${isKana(lv)?' kana':''}${fav?' fav':''}" data-k="${d.k}" onclick="openModal('${d.k}')">
+        <div class="k-char">${d.k}</div>
+        <div class="k-mean">${meaning}</div>
+        <button class="k-fav" onclick="toggleFav('${d.k}',event)">${fav?'★':'☆'}</button>
+      </div>`;
+    }
+    html+=`</div></div>`;
+  }
+
+  const info=document.getElementById('results-info');
+  if(q) info.innerHTML=total?`<strong>${total}</strong> result${total===1?'':'s'} for <em>"${q}"</em>`:`No results for <em>"${q}"</em>`;
+  else info.innerHTML=`<strong>${total}</strong> characters`;
+
+  document.getElementById('dex-content').innerHTML = total ? html :
+    `<div class="empty"><div class="empty-k">？</div><div class="empty-t">No results found</div></div>`;
+}
+
+function openModal(k){
+  const fd=ALL_DATA[k]; if(!fd) return;
+  const isKana=fd.lv==='Hiragana'||fd.lv==='Katakana';
+  document.getElementById('km-k').textContent=fd.k;
+  document.getElementById('km-m').textContent=isKana?(fd.on[0]||fd.m||''):getM(fd);
+  const fav=favSet.has(k);
+  let tags=`<span class="km-tag lvl">${fd.lv}</span>`;
+  if(!isKana&&fd.s) tags+=`<span class="km-tag strk">${fd.s} strokes</span>`;
+  tags+=`<button class="km-fav-btn${fav?' on':''}" id="km-fav-btn" onclick="toggleFav('${k}')">${fav?'★ Saved':'☆ Favorite'}</button>`;
+  document.getElementById('km-tags').innerHTML=tags;
+  let r='';
+  if(!isKana){
+    if(fd.on.length) r+=`<div class="km-rgroup"><div class="km-rlabel">On'yomi · 音読み</div><div class="km-rvals">${fd.on.map(o=>`<span class="km-rval on">${o}</span>`).join('')}</div></div>`;
+    if(fd.kun.length) r+=`<div class="km-rgroup"><div class="km-rlabel">Kun'yomi · 訓読み</div><div class="km-rvals">${fd.kun.map(o=>`<span class="km-rval kun">${o}</span>`).join('')}</div></div>`;
+  }
+  document.getElementById('km-readings').innerHTML=r;
+  const ext=document.getElementById('km-ex-title'), exe=document.getElementById('km-ex');
+  if(fd.ex&&fd.ex.length){
+    ext.style.display=''; ext.textContent=isKana?'Words with this sound':'Examples';
+    exe.innerHTML=fd.ex.map(e=>`<div class="km-ex">
+      <div class="km-ex-word">${e.w}</div>
+      ${!isKana?`<div class="km-ex-reading">${e.r}</div>`:''}
+      <div class="km-ex-meaning">${LANG==='pt'&&e.m_pt?e.m_pt:LANG==='es'&&e.m_es?e.m_es:e.m}</div>
+    </div>`).join('');
+  } else { ext.style.display='none'; exe.innerHTML=''; }
+  document.getElementById('kmodal-ov').classList.add('show');
+}
+function closeModal(){ document.getElementById('kmodal-ov').classList.remove('show'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+function toggleDark() {
+  var isDark = document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('kanjipro_dark', isDark ? '1' : '0'); } catch(e) {}
+}
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('kanjipro_dark'); } catch(e) {}
+  var preferDark = saved !== null
+    ? saved === '1'
+    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (preferDark) document.documentElement.classList.add('dark');
+})();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanji Pro — Learn Japanese Kanji</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400&family=Crimson+Pro:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Theme Variables ─────────────────────────────────────────────── */
+:root {
+  --ink: #1a1410;
+  --paper: #f5f0e8;
+  --paper2: #ede8dc;
+  --red: #c0392b;
+  --gold: #b8860b;
+  --muted: #8a7f6e;
+  --border: #d4cfc4;
+  --shadow: rgba(26,20,16,0.12);
+  --card-bg: white;
+}
+
+html.dark {
+  --ink: #e8e0d0;
+  --paper: #1a1814;
+  --paper2: #242018;
+  --red: #e05a4a;
+  --gold: #d4a84b;
+  --muted: #7a7060;
+  --border: #3a342c;
+  --shadow: rgba(0,0,0,0.35);
+  --card-bg: #211e19;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────── */
+html { font-size: 16px; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Crimson Pro', 'Noto Sans JP', serif;
+  min-height: 100vh;
+  position: relative;
+  transition: background 0.3s, color 0.3s;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(26,20,16,0.025) 24px, rgba(26,20,16,0.025) 25px),
+    repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(26,20,16,0.01) 24px, rgba(26,20,16,0.01) 25px);
+  pointer-events: none;
+  z-index: 0;
+}
+html.dark::before { opacity: 0.3; }
+
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* ── Dark Mode Toggle ─────────────────────────────────────────────── */
+.dark-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1.5rem;
+  z-index: 200;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  user-select: none;
+  padding: 0;
+}
+.dark-toggle:hover { border-color: var(--gold); }
+.dark-toggle svg {
+  width: 16px; height: 16px;
+  stroke: var(--muted); fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.dark-toggle .icon-sun { display: none; }
+.dark-toggle .icon-moon { display: block; }
+html:not(.dark) .dark-toggle .icon-moon { display: none; }
+html:not(.dark) .dark-toggle .icon-sun { display: block; }
+
+/* ── Header ──────────────────────────────────────────────────────── */
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid var(--border);
+  animation: fadeDown 0.5s ease both;
+}
+
+.logo {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: -2px;
+  color: var(--ink);
+  line-height: 1;
+}
+.logo span { color: var(--red); }
+
+.subtitle {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+  letter-spacing: 0.05em;
+}
+
+/* ── Home Screen ─────────────────────────────────────────────────── */
+.home-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0 2rem;
+  animation: fadeUp 0.4s ease both;
+}
+
+/* ── Mode Cards ──────────────────────────────────────────────────── */
+.mode-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.mode-card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 2.4rem 2.2rem 2rem;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  position: relative;
+  overflow: hidden;
+  min-height: 260px;
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at top left, rgba(212,160,23,0.07), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.mode-card:hover::before { opacity: 1; }
+.mode-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+.mode-card-kanji {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  letter-spacing: -2px;
+  white-space: nowrap;
+  margin-bottom: 0.2rem;
+}
+.mode-card-kanji span { color: var(--gold); }
+
+.mode-card-title {
+  font-family: 'Crimson Pro', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mode-card-desc {
+  font-family: 'Crimson Pro', serif;
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.65;
+  flex: 1;
+}
+
+.mode-card-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.6rem;
+}
+
+.mode-tag {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.65rem;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mode-card-arrow {
+  position: absolute;
+  top: 1.4rem;
+  right: 1.6rem;
+  font-size: 1.3rem;
+  color: var(--gold);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  transform: translateX(-6px);
+}
+.mode-card:hover .mode-card-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Ko-fi ────────────────────────────────────────────────────────── */
+.kofi-section {
+  width: 100%;
+  margin-top: 2.5rem;
+  display: flex;
+  justify-content: center;
+  animation: fadeUp 0.5s 0.15s ease both;
+}
+
+.kofi-card {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.2rem 2.2rem;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 99px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 12px var(--shadow);
+  max-width: 500px;
+}
+.kofi-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px var(--shadow);
+}
+
+.kofi-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2.5px solid var(--gold);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--paper2);
+}
+
+.kofi-text { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.kofi-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.kofi-cta {
+  font-family: 'Crimson Pro', serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.kofi-heart {
+  color: #e05a4a;
+  font-size: 1rem;
+  display: inline-block;
+  animation: kofiPulse 1.8s ease-in-out infinite;
+}
+@keyframes kofiPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+.kofi-arrow {
+  font-size: 0.9rem;
+  color: var(--gold);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  transform: translateX(-4px);
+  margin-left: 0.3rem;
+  flex-shrink: 0;
+}
+.kofi-card:hover .kofi-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Particles ────────────────────────────────────────────────────── */
+.particles-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  font-family: 'Noto Serif JP', serif;
+  color: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+/* Particles fade via JS Web Animations API */
+
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .mode-cards { grid-template-columns: 1fr; }
+  .mode-card-kanji { font-size: 2.6rem; }
+  .mode-card { min-height: 200px; padding: 1.8rem 1.6rem 1.5rem; }
+  .kofi-card { padding: 1rem 1.5rem; gap: 1rem; }
+  .kofi-avatar { width: 46px; height: 46px; }
+  .kofi-cta { font-size: 1.05rem; }
+}
+
+/* Language selector */
+.search-btn {
+  right: 6.5rem !important;
+}
+.search-btn:hover { border-color: var(--gold); }
+.lang-btn {
+  right: 4rem !important;
+}
+#lang-label {
+  font: 600 0.6rem 'Crimson Pro', serif;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+.lang-btn:hover #lang-label { color: var(--gold); }
+.lang-drop {
+  position: fixed; top: 3.5rem; right: 4rem; z-index: 20;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 0.3rem; display: none; flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  min-width: 110px;
+}
+.lang-drop.show { display: flex; }
+.lang-opt {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.45rem 0.75rem; border-radius: 7px;
+  cursor: pointer; font: 400 0.75rem 'Crimson Pro', serif; color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
+}
+.lang-opt:hover { background: rgba(212,168,75,0.07); color: var(--ink); }
+.lang-opt.active { color: var(--gold); }
+.lang-opt.active::after {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+
+<div class="particles-container" id="particles"></div>
+
+<button class="dark-toggle search-btn" onclick="window.location.href='jiten.html'" title="Search kanji">
+  <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:1.5;stroke-linecap:round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+</button>
+<button class="dark-toggle" id="dark-toggle" onclick="toggleDark()" title="Toggle dark mode">
+  <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+</button>
+<button class="dark-toggle lang-btn" id="lang-btn" onclick="var d=document.getElementById('lang-drop');d.classList.toggle('show')" title="Language">
+  <span id="lang-label">EN</span>
+</button>
+<div id="lang-drop" class="lang-drop">
+  <div class="lang-opt" data-lang="en" onclick="pickLang('en')">English</div>
+  <div class="lang-opt" data-lang="pt" onclick="pickLang('pt')">Português</div>
+  <div class="lang-opt" data-lang="es" onclick="pickLang('es')">Español</div>
+</div>
+
+<div class="app">
+  <header>
+    <div class="logo">漢字<span>Pro</span></div>
+    <div class="subtitle" id="home-subtitle">Master Japanese Kanji — N5 to N1</div>
+  </header>
+
+  <div class="home-screen">
+    <div class="mode-cards">
+
+      <div class="mode-card">
+        <div class="mode-card-kanji">打<span>字</span></div>
+        <div class="mode-card-title" id="home-type">Type</div>
+        <div class="mode-card-desc" id="home-type-desc">Race against the clock typing kanji readings as they appear on screen.</div>
+        <div class="mode-card-tags">
+          <span class="mode-tag" id="tag-speed">Speed</span>
+          <span class="mode-tag" id="tag-romaji">Romaji</span>
+          <span class="mode-tag">N5 – N1</span>
+        </div>
+        <span class="mode-card-arrow">→</span>
+      </div>
+
+      <div class="mode-card" onclick="window.location.href='quiz.html'">
+        <div class="mode-card-kanji">漢<span>字</span></div>
+        <div class="mode-card-title" id="home-quiz">Quiz</div>
+        <div class="mode-card-desc" id="home-quiz-desc">Flashcard drills with multiple choice that level up as you master each group.</div>
+        <div class="mode-card-tags">
+          <span class="mode-tag" id="tag-cards">Cards</span>
+          <span class="mode-tag" id="tag-stages">Stages</span>
+          <span class="mode-tag">N5 – N1</span>
+        </div>
+        <span class="mode-card-arrow">→</span>
+      </div>
+
+      <div class="mode-card" onclick="window.location.href='read.html'">
+        <div class="mode-card-kanji">読<span>解</span></div>
+        <div class="mode-card-title" id="home-read">Read</div>
+        <div class="mode-card-desc" id="home-read-desc">Explore Japanese texts and learn to identify particles, verbs, and kanji in context.</div>
+        <div class="mode-card-tags">
+          <span class="mode-tag" id="tag-texts">Texts</span>
+          <span class="mode-tag" id="tag-grammar">Grammar</span>
+          <span class="mode-tag">N5 – N1</span>
+        </div>
+        <span class="mode-card-arrow">→</span>
+      </div>
+
+    </div>
+
+    <div class="kofi-section">
+      <a href="https://ko-fi.com/lotties" target="_blank" rel="noopener" class="kofi-card">
+        <img class="kofi-avatar" src="https://storage.ko-fi.com/cdn/useruploads/80f03e70-b403-42f3-8177-bc1f8a0060b7_cdc95896-8a5d-49b6-985d-19508eee0b.png" alt="lotties on Ko-fi">
+        <div class="kofi-text">
+          <span class="kofi-label" id="kofi-label">Enjoying Kanji Pro?</span>
+          <span class="kofi-cta"><span class="kofi-heart">♥</span> <span id="kofi-cta">Support me on Ko-fi</span></span>
+        </div>
+        <span class="kofi-arrow">→</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+
+
+// ── Language ───────────────────────────────────────────────────────
+const LANG_LABELS={en:'EN',pt:'PT',es:'ES'};
+function updateLangOpts(){
+  document.querySelectorAll('.lang-opt[data-lang]').forEach(el=>{
+    el.classList.toggle('active', el.dataset.lang===currentLang);
+  });
+}
+function pickLang(lang){
+  setLang(lang);
+  document.getElementById('lang-drop').classList.remove('show');
+  document.getElementById('lang-label').textContent=LANG_LABELS[lang]||'EN';updateLangOpts();
+  applyLang();
+}
+function applyLang(){
+  const $=id=>document.getElementById(id);
+  if($('home-subtitle'))$('home-subtitle').textContent=t('home_subtitle');
+  if($('home-type'))$('home-type').textContent=t('home_type');
+  if($('home-type-desc'))$('home-type-desc').textContent=t('home_type_desc');
+  if($('home-quiz'))$('home-quiz').textContent=t('home_quiz');
+  if($('home-quiz-desc'))$('home-quiz-desc').textContent=t('home_quiz_desc');
+  if($('home-read'))$('home-read').textContent=t('home_read');
+  if($('home-read-desc'))$('home-read-desc').textContent=t('home_read_desc');
+  if($('kofi-label'))$('kofi-label').textContent=t('home_kofi_label');
+  if($('kofi-cta'))$('kofi-cta').textContent=t('home_kofi_cta');
+  if($('tag-speed'))$('tag-speed').textContent=t('tag_speed');
+  if($('tag-romaji'))$('tag-romaji').textContent=t('tag_romaji');
+  if($('tag-cards'))$('tag-cards').textContent=t('tag_cards');
+  if($('tag-stages'))$('tag-stages').textContent=t('tag_stages');
+  if($('tag-texts'))$('tag-texts').textContent=t('tag_texts');
+  if($('tag-grammar'))$('tag-grammar').textContent=t('tag_grammar');
+}
+(function(){
+  document.getElementById('lang-label').textContent=LANG_LABELS[currentLang]||'EN';updateLangOpts();
+  applyLang();
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('#lang-btn')&&!e.target.closest('#lang-drop'))
+      document.getElementById('lang-drop').classList.remove('show');
+  });
+})();
+
+// ── Floating Kanji Particles ───────────────────────────────────────
+(function() {
+  const container = document.getElementById('particles');
+  const chars = '漢字読書学語文心夢花風月光星雨空海山火水木金土日時力愛美音道'.split('');
+  const MAX = 18;
+  let n = 0;
+
+  function spawn() {
+    if (n >= MAX) return;
+    const el = document.createElement('span');
+    el.className = 'particle';
+    el.textContent = chars[Math.floor(Math.random() * chars.length)];
+    const s = 14 + Math.random() * 28, l = Math.random() * 100;
+    const d = 18 + Math.random() * 25, dl = Math.random() * 2;
+    const o = 0.03 + Math.random() * 0.05, r = -30 + Math.random() * 60;
+    const dx = -40 + Math.random() * 80;
+    el.style.cssText = `font-size:${s}px;left:${l}%`;
+    el.animate([
+      { transform: `translateY(100vh) translateX(0) rotate(0)`, opacity: 0 },
+      { transform: `translateY(80vh) translateX(${dx*.3}px) rotate(${r*.2}deg)`, opacity: o, offset: 0.05 },
+      { transform: `translateY(10vh) translateX(${dx}px) rotate(${r*.8}deg)`, opacity: o, offset: 0.9 },
+      { transform: `translateY(-10vh) translateX(${dx*.3}px) rotate(${r}deg)`, opacity: 0 }
+    ], { duration: d*1e3, delay: dl*1e3, easing: 'linear', fill: 'forwards' });
+    container.appendChild(el);
+    n++;
+    setTimeout(() => { el.remove(); n--; }, (d+dl)*1e3);
+  }
+
+  for (let i = 0; i < 10; i++) setTimeout(spawn, i * 800);
+  setInterval(spawn, 2500);
+})();
+
+
+</script>
+
+</body>
+</html>
